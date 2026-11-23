@@ -57,15 +57,108 @@
 #include "hbvm.h"
 #include "hbstack.h"
 
+/* Check if nested array can be released by the outer array release
+ * code instead of recursive call from hb_itemClear(): it has to have
+ * items, it cannot be an object with destructor which has to be executed
+ * and it has to be referenced only by the item which is being released.
+ * In such case the last reference is taken and the array is marked as
+ * released so GC will not touch it.
+ */
+static HB_BOOL hb_arrayReleaseDefer( PHB_BASEARRAY pBaseArray )
+{
+   return pBaseArray->nLen != 0 &&
+          ( pBaseArray->uiClass == 0 || pBaseArray->uiPrevCls != 0 ||
+            ! hb_clsHasDestructor( pBaseArray->uiClass ) ) &&
+          hb_gcRefDeferFree( pBaseArray );
+}
+
+/* Clear item with nested array. If the array can be taken by
+ * hb_arrayReleaseDefer() then it and all nested arrays which can be
+ * taken from it are stored in the list and their items are released
+ * in a loop. It eliminates recursion which exhausted C stack when deeply
+ * nested structures, e.g. linked lists created with arrays, were released.
+ * It is not inlined to keep small stack frame of hb_arrayReleaseItems()
+ * which is still called recursively for arrays nested in other types
+ * of items, e.g. hashes or codeblocks.
+ */
+static HB_NOINLINE_ATTR void hb_arrayReleaseNested( PHB_ITEM pArray )
+{
+   PHB_BASEARRAY pBaseArray = pArray->item.asArray.value;
+   PHB_BASEARRAY * pNested = NULL;
+   HB_SIZE nSize = 0, nCount = 0;
+
+   if( ! hb_arrayReleaseDefer( pBaseArray ) )
+   {
+      hb_itemClear( pArray );
+      return;
+   }
+
+   pArray->type = HB_IT_NIL;
+
+   for( ;; )
+   {
+      while( pBaseArray->nLen )
+      {
+         PHB_ITEM pItem = pBaseArray->pItems + --pBaseArray->nLen;
+
+         if( HB_IS_ARRAY( pItem ) &&
+             hb_arrayReleaseDefer( pItem->item.asArray.value ) )
+         {
+            if( nCount == nSize )
+            {
+               if( nSize == 0 )
+               {
+                  nSize = 16;
+                  pNested = ( PHB_BASEARRAY * ) hb_xgrab( nSize * sizeof( PHB_BASEARRAY ) );
+               }
+               else
+               {
+                  nSize += nSize >> 1;
+                  pNested = ( PHB_BASEARRAY * ) hb_xrealloc( pNested, nSize * sizeof( PHB_BASEARRAY ) );
+               }
+            }
+            pNested[ nCount++ ] = pItem->item.asArray.value;
+            pItem->type = HB_IT_NIL;
+         }
+         else if( HB_IS_COMPLEX( pItem ) )
+            hb_itemClear( pItem );
+      }
+
+      /* protection against possible base array resizing in user destructors */
+      if( pBaseArray->pItems )
+      {
+         hb_xfree( pBaseArray->pItems );
+         pBaseArray->pItems = NULL;
+         pBaseArray->nAllocated = 0;
+      }
+
+      /* the array does not have any items now so its clean-up function
+       * will not call hb_arrayReleaseItems() again
+       */
+      hb_gcRefFinalize( pBaseArray );
+
+      if( nCount == 0 )
+         break;
+
+      pBaseArray = pNested[ --nCount ];
+   }
+
+   if( pNested )
+      hb_xfree( pNested );
+}
+
 static void hb_arrayReleaseItems( PHB_BASEARRAY pBaseArray )
 {
    if( pBaseArray->nLen )
    {
       do
       {
-         pBaseArray->nLen--;
-         if( HB_IS_COMPLEX( pBaseArray->pItems + pBaseArray->nLen ) )
-            hb_itemClear( pBaseArray->pItems + pBaseArray->nLen );
+         PHB_ITEM pItem = pBaseArray->pItems + --pBaseArray->nLen;
+
+         if( HB_IS_ARRAY( pItem ) && pItem->item.asArray.value->nLen != 0 )
+            hb_arrayReleaseNested( pItem );
+         else if( HB_IS_COMPLEX( pItem ) )
+            hb_itemClear( pItem );
       }
       while( pBaseArray->nLen );
 
@@ -88,6 +181,18 @@ void hb_arrayPushBase( PHB_BASEARRAY pBaseArray )
    hb_gcRefInc( pBaseArray );
 }
 
+/* execute object destructor. It is not inlined to keep small stack frame
+ * of hb_arrayGarbageRelease() which can be called recursively when nested
+ * items are released
+ */
+static HB_NOINLINE_ATTR void hb_arrayDestructorCall( PHB_BASEARRAY pBaseArray )
+{
+   HB_STACK_TLS_PRELOAD
+   hb_arrayPushBase( pBaseArray );
+   hb_objDestructorCall( hb_stackItemFromTop( -1 ) );
+   hb_stackPop();
+}
+
 /* This releases array when called from the garbage collector */
 static HB_GARBAGE_FUNC( hb_arrayGarbageRelease )
 {
@@ -100,12 +205,7 @@ static HB_GARBAGE_FUNC( hb_arrayGarbageRelease )
        */
       if( pBaseArray->uiPrevCls == 0 &&
           hb_clsHasDestructor( pBaseArray->uiClass ) )
-      {
-         HB_STACK_TLS_PRELOAD
-         hb_arrayPushBase( pBaseArray );
-         hb_objDestructorCall( hb_stackItemFromTop( -1 ) );
-         hb_stackPop();
-      }
+         hb_arrayDestructorCall( pBaseArray );
 
       /*
        * This is only some additional protection for buggy code

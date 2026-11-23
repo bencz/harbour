@@ -152,6 +152,11 @@ static PHB_GARBAGE s_pLockedBlock = NULL;
 /* pointer to memory blocks that will be deleted */
 static PHB_GARBAGE s_pDeletedBlock = NULL;
 
+/* pointer to memory blocks which are being released by
+ * hb_gcRefDeferFree() and hb_gcRefFinalize()
+ */
+static PHB_GARBAGE s_pReleaseBlock = NULL;
+
 /* marks if block releasing is requested during garbage collecting */
 static HB_BOOL volatile s_bCollecting = HB_FALSE;
 
@@ -159,6 +164,23 @@ static HB_BOOL volatile s_bCollecting = HB_FALSE;
  * is reversed on every collecting attempt
  */
 static HB_USHORT s_uUsedFlag = HB_GC_USED_FLAG;
+
+/* stack of blocks waiting for scanning by their mark functions.
+ * Mark functions are called recursively only up to HB_GC_MARKLEVEL_MAX
+ * nested levels, deeper blocks are stored on this stack. It eliminates
+ * deep recursion (and C stack overflow) when nested structures, e.g.
+ * linked lists created with arrays, are scanned. It's accessed only by
+ * the thread which collects garbage when all other threads are stopped
+ * so it does not need additional protection in MT mode.
+ */
+#define HB_GC_MARKSTACK_INIT  256
+#define HB_GC_MARKLEVEL_MAX   32
+
+static PHB_GARBAGE   s_markStackBuffer[ HB_GC_MARKSTACK_INIT ];
+static PHB_GARBAGE * s_pMarkStack = s_markStackBuffer;
+static HB_SIZE       s_nMarkStackSize = HB_GC_MARKSTACK_INIT;
+static HB_SIZE       s_nMarkStackCount = 0;
+static int           s_iMarkLevel = 0;
 
 
 static void hb_gcLink( PHB_GARBAGE * pList, PHB_GARBAGE pAlloc )
@@ -323,6 +345,60 @@ void hb_gcRefFree( void * pBlock )
    }
 }
 
+/* If the caller holds the last reference to the block then decrement
+ * reference counter and mark the block as released in the same way as
+ * hb_gcRefFree() does but do not execute clean-up function. The block
+ * is moved to the list of blocks being released so GC does not release
+ * it but it still scans items referenced from it, e.g. items of nested
+ * arrays which have not been released yet. The caller has to free the
+ * block later by hb_gcRefFinalize(). It allows to release nested
+ * structures in a loop instead of recursive calls.
+ */
+HB_BOOL hb_gcRefDeferFree( void * pBlock )
+{
+   PHB_GARBAGE pAlloc = HB_GC_PTR( pBlock );
+
+   if( hb_xRefCount( pAlloc ) == 1 && pAlloc->locked == 0 &&
+       ! ( pAlloc->used & HB_GC_DELETE ) && hb_xRefDec( pAlloc ) )
+   {
+      pAlloc->used |= HB_GC_DELETE;
+      HB_GC_LOCK();
+      hb_gcUnlink( &s_pCurrBlock, pAlloc );
+      HB_GC_AUTO_DEC();
+      hb_gcLink( &s_pReleaseBlock, pAlloc );
+      HB_GC_UNLOCK();
+      return HB_TRUE;
+   }
+   return HB_FALSE;
+}
+
+/* execute clean-up function and free the block released by
+ * hb_gcRefDeferFree()
+ */
+void hb_gcRefFinalize( void * pBlock )
+{
+   PHB_GARBAGE pAlloc = HB_GC_PTR( pBlock );
+
+   /* execute clean-up function */
+   pAlloc->pFuncs->clear( pBlock );
+
+   HB_GC_LOCK();
+   hb_gcUnlink( &s_pReleaseBlock, pAlloc );
+   if( hb_xRefCount( pAlloc ) != 0 )
+   {
+      pAlloc->used = s_uUsedFlag;
+      hb_gcLink( &s_pCurrBlock, pAlloc );
+      HB_GC_AUTO_INC();
+      HB_GC_UNLOCK();
+      if( hb_vmRequestQuery() == 0 )
+         hb_errRT_BASE( EG_DESTRUCTOR, 1301, NULL, "Reference to freed block", 0 );
+   }
+   else
+   {
+      HB_GC_UNLOCK();
+      HB_GARBAGE_FREE( pAlloc );
+   }
+}
 
 /* return number of references */
 #undef hb_gcRefCount
@@ -462,6 +538,58 @@ void hb_gcAttach( void * pBlock )
       hb_xRefInc( pAlloc );
 }
 
+/* execute mark function of given block which has been just marked as
+ * used. When the maximum level of nested calls is reached then the block
+ * is only stored on the stack of blocks to scan and it will be processed
+ * by the outermost call.
+ */
+static void hb_gcMarkBlock( PHB_GARBAGE pAlloc )
+{
+   if( s_iMarkLevel >= HB_GC_MARKLEVEL_MAX )
+   {
+      if( s_nMarkStackCount == s_nMarkStackSize )
+      {
+         s_nMarkStackSize += s_nMarkStackSize >> 1;
+         if( s_pMarkStack == s_markStackBuffer )
+         {
+            s_pMarkStack = ( PHB_GARBAGE * )
+                  hb_xgrab( s_nMarkStackSize * sizeof( PHB_GARBAGE ) );
+            memcpy( s_pMarkStack, s_markStackBuffer,
+                    s_nMarkStackCount * sizeof( PHB_GARBAGE ) );
+         }
+         else
+            s_pMarkStack = ( PHB_GARBAGE * )
+                  hb_xrealloc( s_pMarkStack, s_nMarkStackSize * sizeof( PHB_GARBAGE ) );
+      }
+      s_pMarkStack[ s_nMarkStackCount++ ] = pAlloc;
+   }
+   else
+   {
+      ++s_iMarkLevel;
+      pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+      if( s_iMarkLevel == 1 )
+      {
+         while( s_nMarkStackCount )
+         {
+            pAlloc = s_pMarkStack[ --s_nMarkStackCount ];
+            pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+         }
+      }
+      --s_iMarkLevel;
+   }
+}
+
+/* release memory allocated for the stack of blocks to scan */
+static void hb_gcMarkStackFree( void )
+{
+   if( s_pMarkStack != s_markStackBuffer )
+   {
+      hb_xfree( s_pMarkStack );
+      s_pMarkStack = s_markStackBuffer;
+      s_nMarkStackSize = HB_GC_MARKSTACK_INIT;
+   }
+}
+
 /* mark passed memory block as used so it will be not released by the GC */
 void hb_gcMark( void * pBlock )
 {
@@ -470,7 +598,7 @@ void hb_gcMark( void * pBlock )
    if( ( pAlloc->used & ~HB_GC_DELETE ) == s_uUsedFlag )
    {
       pAlloc->used ^= HB_GC_USED_FLAG;  /* mark this codeblock as used */
-      pAlloc->pFuncs->mark( pBlock );
+      hb_gcMarkBlock( pAlloc );
    }
 }
 
@@ -498,7 +626,7 @@ void hb_gcItemRef( PHB_ITEM pItem )
             /* mark this array as used */
             pAlloc->used ^= HB_GC_USED_FLAG;
             /* mark also all array elements */
-            pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+            hb_gcMarkBlock( pAlloc );
          }
          return;
       }
@@ -517,7 +645,7 @@ void hb_gcItemRef( PHB_ITEM pItem )
           */
          pAlloc->used ^= HB_GC_USED_FLAG;
          /* mark also all array elements */
-         pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+         hb_gcMarkBlock( pAlloc );
       }
    }
    else if( HB_IS_HASH( pItem ) )
@@ -530,7 +658,7 @@ void hb_gcItemRef( PHB_ITEM pItem )
          /* mark this hash table as used */
          pAlloc->used ^= HB_GC_USED_FLAG;
          /* mark also all hash elements */
-         pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+         hb_gcMarkBlock( pAlloc );
       }
    }
    else if( HB_IS_BLOCK( pItem ) )
@@ -542,7 +670,7 @@ void hb_gcItemRef( PHB_ITEM pItem )
          /* mark this codeblock as used */
          pAlloc->used ^= HB_GC_USED_FLAG;
          /* mark as used all detached variables in a codeblock */
-         pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+         hb_gcMarkBlock( pAlloc );
       }
    }
    else if( HB_IS_POINTER( pItem ) )
@@ -556,7 +684,7 @@ void hb_gcItemRef( PHB_ITEM pItem )
             /* mark this memory block as used */
             pAlloc->used ^= HB_GC_USED_FLAG;
             /* mark also all internal user blocks attached to this block */
-            pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+            hb_gcMarkBlock( pAlloc );
          }
       }
    }
@@ -614,6 +742,24 @@ void hb_gcCollectAll( HB_BOOL fForce )
          }
          while( s_pLockedBlock != pAlloc );
       }
+
+      /* check list of blocks which are being released for blocks
+       * referenced from them, e.g. items of nested arrays which have
+       * not been released yet
+       */
+      if( s_pReleaseBlock )
+      {
+         pAlloc = s_pReleaseBlock;
+         do
+         {
+            pAlloc->pFuncs->mark( HB_BLOCK_PTR( pAlloc ) );
+            pAlloc = pAlloc->pNext;
+         }
+         while( s_pReleaseBlock != pAlloc );
+      }
+
+      /* release memory used by the stack of blocks to scan */
+      hb_gcMarkStackFree();
 
       /* Step 3 - finalize */
       /* Release all blocks that are still marked as unused */

@@ -564,6 +564,12 @@
                      __attribute__ (( pure ))
    #define HB_CONST_ATTR \
                      __attribute__ (( const ))
+#  if ( __GNUC__ > 3 ) || ( __GNUC__ == 3 && __GNUC_MINOR__ >= 1 )
+   #define HB_NOINLINE_ATTR \
+                     __attribute__ (( noinline ))
+#  else
+   #define HB_NOINLINE_ATTR
+#  endif
 #  if 0
    #define HB_NORETURN_ATTR \
                      __attribute__ (( noreturn ))
@@ -604,6 +610,11 @@
    #define HB_COLD_ATTR
    #define HB_PURE_ATTR
    #define HB_CONST_ATTR
+#  if defined( _MSC_VER ) && ( _MSC_VER >= 1400 )
+   #define HB_NOINLINE_ATTR   __declspec( noinline )
+#  else
+   #define HB_NOINLINE_ATTR
+#  endif
    #define HB_FLATTEN_ATTR
    #define HB_ALLOC_SIZE_ATTR( _nParam )
    #define HB_RESTRICT

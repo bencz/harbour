@@ -615,6 +615,8 @@ extern void       hb_vmIsStaticRef( void ); /* hvm.c - mark all static variables
 extern void       hb_gcReleaseAll( void ); /* release all memory blocks unconditionally */
 
 extern HB_COUNTER hb_gcRefCount( void * pAlloc );  /* return number of references */
+extern HB_BOOL    hb_gcRefDeferFree( void * pAlloc ); /* take the last reference and mark the block as released without executing its clean-up function */
+extern void       hb_gcRefFinalize( void * pAlloc ); /* execute clean-up function and free the block released by hb_gcRefDeferFree() */
 
 #if 0
 #define hb_gcRefInc( p )      hb_xRefInc( HB_GC_PTR( p ) )

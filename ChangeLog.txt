@@ -7,6 +7,34 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-23 20:05 UTC-0300 Alexandre Bencz
+  * include/hbsetup.h
+    + added HB_NOINLINE_ATTR macro (GCC >= 3.1 and MSVC >= 1400)
+
+  * include/hbapi.h
+  * src/vm/garbage.c
+    ! fixed C stack overflow in GC mark pass for deeply nested structures,
+      e.g. long linked lists created with arrays. Mark functions are called
+      recursively only up to 32 nested levels, deeper blocks are stored on
+      the explicit stack of blocks to scan
+    + added internal functions hb_gcRefDeferFree() and hb_gcRefFinalize()
+      which allow to release nested structures in a loop instead of
+      recursive calls. Blocks released this way are kept on separate list
+      and GC scans items referenced from them so items which have not been
+      released yet are not collected when object destructor activates GC
+
+  * src/vm/arrays.c
+    ! fixed C stack overflow when deeply nested arrays or objects without
+      destructors were released, e.g. 1000000 nodes linked list created
+      with arrays crashed HVM. Nested arrays referenced only by released
+      array are released in a loop
+    * moved destructor call to separate function to keep small stack frame
+      of array release code which is still called recursively for arrays
+      nested in other items, e.g. hashes or codeblocks
+
+  * utils/hbtest/rt_array.prg
+    + added test for releasing and scanning deeply nested arrays
+
 2026-10-24 23:11 UTC+0200 Aleksander Czajczynski (hb fki.pl)
   * src/macro/macrolex.c
   * tests/base2.prg
