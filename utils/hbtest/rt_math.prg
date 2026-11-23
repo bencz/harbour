@@ -687,6 +687,10 @@ PROCEDURE Main_MATH()
    HBTEST -4611686018427387905 * 2 < 0                        IS .T.
    HBTEST -9223372036854775000 - 1000 < 0                     IS .T.
    HBTEST &( "-9223372036854775807 - 2" ) < 0                 IS .T.
+   /* overflow to 2^63 has to give positive floating point number */
+   HBTEST ( l := 4611686018427387904, l * 2 > 0 )            IS .T.
+   HBTEST ( l := -9223372036854775807 - 1, l * -1 > 0 )      IS .T.
+   HBTEST TMultC5( -9223372036854775807 - 1 )                 IS .T.
 #endif
 
    RETURN
@@ -704,6 +708,9 @@ STATIC FUNCTION TMultC2( n )
 
 STATIC FUNCTION TMultC3( n )
    RETURN hb_ntos( n * -2 )
+
+STATIC FUNCTION TMultC5( n )
+   RETURN n * -1 > 0
 
 STATIC FUNCTION TMultC4( n )
    /* the second multiplication overflows HB_MAXINT */

@@ -7,6 +7,21 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-23 20:50 UTC-0300 Alexandre Bencz
+  * include/hbdefs.h
+    ! fixed upper limit in HB_DBL_LIM_LONG() and HB_DBL_LIM_INT64() macros.
+      When HB_MAXDBL is double (e.g. MSVC, ARM or HB_LONG_DOUBLE_OFF builds)
+      then maximal 64-bit integer value is converted to 2^63 and such value
+      passed the check and was converted to 64-bit integer (undefined
+      behavior, -2^63 on x86), e.g. (-9223372036854775807 - 1) * -1 gave
+      -9223372036854775808 and 2^63 was stored in DBF integer fields as
+      -2^63. Now upper limit is checked using negated minimal value which
+      is always exactly representable. HB_DBL_LIM_LONG() fix was proposed
+      by Aleksander Czajczynski in harbour/core issue #404.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for integer multiplication overflow to 2^63
+
 2026-11-23 20:48 UTC-0300 Alexandre Bencz
   * src/common/expropt2.c
     ! fixed integer overflow detection in compile time optimization of

@@ -468,8 +468,14 @@ typedef HB_MAXUINT   HB_VMMAXUINT;
 
 typedef HB_U32       HB_SYMCNT;
 
+/* NOTE: upper limits of HB_DBL_LIM_LONG() and HB_DBL_LIM_INT64() are
+ *       checked using negated minimal value because maximal value may
+ *       not be exactly representable as HB_MAXDBL, e.g. when it is double
+ *       then ( double ) INT64_MAX == 2^63 and such value cannot be converted
+ *       to 64-bit integer, minimal value is power of 2 so it's always exact
+ */
 #define HB_DBL_LIM_INT(d)     ( HB_VMINT_MIN <= (d) && (d) <= HB_VMINT_MAX )
-#define HB_DBL_LIM_LONG(d)    ( (HB_MAXDBL) HB_VMLONG_MIN <= (HB_MAXDBL) (d) && (HB_MAXDBL) (d) <= (HB_MAXDBL) HB_VMLONG_MAX )
+#define HB_DBL_LIM_LONG(d)    ( (HB_MAXDBL) HB_VMLONG_MIN <= (HB_MAXDBL) (d) && (HB_MAXDBL) (d) < -( (HB_MAXDBL) HB_VMLONG_MIN ) )
 #define HB_LIM_INT(l)         ( HB_VMINT_MIN <= (l) && (l) <= HB_VMINT_MAX )
 #define HB_LIM_LONG(l)        ( HB_VMLONG_MIN <= (l) && (l) <= HB_VMLONG_MAX )
 
@@ -477,7 +483,7 @@ typedef HB_U32       HB_SYMCNT;
 #define HB_DBL_LIM_INT16(d)   ( INT16_MIN <= (d) && (d) <= INT16_MAX )
 #define HB_DBL_LIM_INT24(d)   ( INT24_MIN <= (d) && (d) <= INT24_MAX )
 #define HB_DBL_LIM_INT32(d)   ( INT32_MIN <= (d) && (d) <= INT32_MAX )
-#define HB_DBL_LIM_INT64(d)   ( (HB_MAXDBL) INT64_MIN <= (HB_MAXDBL) (d) && (HB_MAXDBL) (d) <= (HB_MAXDBL) INT64_MAX )
+#define HB_DBL_LIM_INT64(d)   ( (HB_MAXDBL) INT64_MIN <= (HB_MAXDBL) (d) && (HB_MAXDBL) (d) < -( (HB_MAXDBL) INT64_MIN ) )
 #define HB_LIM_INT8(l)        ( -128 <= (l) && (l) <= 127 )
 #define HB_LIM_INT16(l)       ( INT16_MIN <= (l) && (l) <= INT16_MAX )
 #define HB_LIM_INT24(l)       ( INT24_MIN <= (l) && (l) <= INT24_MAX )
