@@ -675,6 +675,18 @@ PROCEDURE Main_MATH()
    HBTEST TMultC3( 4611686018427387904 )                      IS "-9223372036854775808"
    HBTEST TMultC3( 2.5 )                                      IS "-5.0"
    HBTEST TMultC4( 4294967296 )                               IS .T.
+   /* compile time optimization of integer expressions near the limits */
+   HBTEST hb_ntos( 9223372036854775800 + 7 )                  IS "9223372036854775807"
+   HBTEST hb_ntos( 9223372036854775807 - 0 )                  IS "9223372036854775807"
+   HBTEST hb_ntos( 4611686018427387903 * 2 )                  IS "9223372036854775806"
+   HBTEST hb_ntos( -9223372036854775807 - 1 )                 IS "-9223372036854775808"
+   HBTEST hb_ntos( -4611686018427387904 * 2 )                 IS "-9223372036854775808"
+   HBTEST hb_ntos( &( "9223372036854775800 + 7" ) )           IS "9223372036854775807"
+   HBTEST 9223372036854775807 + 1 > 0                         IS .T.
+   HBTEST -9223372036854775807 - 2 < 0                        IS .T.
+   HBTEST -4611686018427387905 * 2 < 0                        IS .T.
+   HBTEST -9223372036854775000 - 1000 < 0                     IS .T.
+   HBTEST &( "-9223372036854775807 - 2" ) < 0                 IS .T.
 #endif
 
    RETURN
