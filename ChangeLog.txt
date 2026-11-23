@@ -7,6 +7,28 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-23 20:31 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    ! fixed precision loss in multiplication of integer numbers. The exact
+      integer result was calculated only when both operands were 32-bit
+      integers, other products were calculated using double numbers and
+      rounded above 2^53, e.g. 18368730161825351 * -1 gave
+      -18368730161825352, and -gc3 code always used double numbers for
+      multiplication by integer constant (hb_xvmMultByInt()) so results
+      were different than in pcode, e.g. 99999999 * 100000001 gave
+      10000000000000000. Now the exact result is used when the product
+      fits in HB_MAXINT, in other case double number is used as before.
+      Based on the fix proposed by Aleksander Czajczynski in harbour/core
+      issue #404 with the same function and macro names: hb_vmMultInt()
+      uses __builtin_mul_overflow() when it's detected by __has_builtin()
+      or GCC >= 5 and portable C89 code otherwise, HB_MUL_OVERFLOW_BUILTIN_OFF
+      macro disables the builtin for all compilers, detection is done at
+      file scope and HB_TRACE() message is fixed.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for exact multiplication of integer numbers and for
+      multiplication by integer constant
+
 2026-11-23 20:18 UTC-0300 Alexandre Bencz
   * src/vm/hvm.c
     ! fixed SWITCH statement with CASE values which do not fit in 32-bit

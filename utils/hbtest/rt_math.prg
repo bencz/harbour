@@ -657,7 +657,47 @@ PROCEDURE Main_MATH()
 
 #endif
 
+#ifdef __HARBOUR__
+   /* exact multiplication of integer numbers whose product fits in HB_MAXINT */
+   HBTEST TMultV( 99999999, 100000001 )                       IS "9999999999999999"
+   HBTEST TMultV( 18368730161825351, -1 )                     IS "-18368730161825351"
+   HBTEST TMultV( -18368730161825351, -1 )                    IS "18368730161825351"
+   HBTEST TMultV( 3037000499, 3037000499 )                    IS "9223372030926249001"
+   HBTEST TMultV( 9223372036854775807, 1 )                    IS "9223372036854775807"
+   HBTEST TMultV( -9223372036854775807 - 1, 1 )               IS "-9223372036854775808"
+   HBTEST TMultV( 4611686018427387904, -2 )                   IS "-9223372036854775808"
+   HBTEST ( l := 4294967296, l * l == 18446744073709551616.0 ) IS .T.
+   /* multiplication by integer constant, -gc3 uses hb_xvmMultByInt()
+      in functions but not in codeblocks so it's tested in functions */
+   HBTEST TMultC1( 99999999 )                                 IS "9999999999999999"
+   HBTEST TMultC2( 18368730161825351 )                        IS "-18368730161825351"
+   HBTEST TMultC2( -9223372036854775807 )                     IS "9223372036854775807"
+   HBTEST TMultC3( 4611686018427387904 )                      IS "-9223372036854775808"
+   HBTEST TMultC3( 2.5 )                                      IS "-5.0"
+   HBTEST TMultC4( 4294967296 )                               IS .T.
+#endif
+
    RETURN
+
+#ifdef __HARBOUR__
+
+STATIC FUNCTION TMultV( n1, n2 )
+   RETURN hb_ntos( n1 * n2 )
+
+STATIC FUNCTION TMultC1( n )
+   RETURN hb_ntos( n * 100000001 )
+
+STATIC FUNCTION TMultC2( n )
+   RETURN hb_ntos( n * -1 )
+
+STATIC FUNCTION TMultC3( n )
+   RETURN hb_ntos( n * -2 )
+
+STATIC FUNCTION TMultC4( n )
+   /* the second multiplication overflows HB_MAXINT */
+   RETURN n * 2147483647 * 4 > 9223372036854775807
+
+#endif
 
 /* Don't change the position of this #include. */
 #include "rt_init.ch"

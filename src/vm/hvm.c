@@ -3507,11 +3507,104 @@ static void hb_vmMinus( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
    }
 }
 
+/* Select compiler builtin for overflow checked multiplication.
+ * Clang pretends to be GCC 4.2 so it has to be detected by __has_builtin.
+ * It can be disabled by HB_MUL_OVERFLOW_BUILTIN_OFF macro and then
+ * portable C89 code is used.
+ */
+#if ! defined( HB_MUL_OVERFLOW_BUILTIN ) && ! defined( HB_MUL_OVERFLOW_BUILTIN_OFF )
+#  if defined( __has_builtin )
+#     if __has_builtin( __builtin_mul_overflow )
+#        define HB_MUL_OVERFLOW_BUILTIN
+#     endif
+#  elif defined( __GNUC__ ) && __GNUC__ >= 5 && \
+        ! defined( __INTEL_COMPILER ) && ! defined( __PCC__ )
+#     define HB_MUL_OVERFLOW_BUILTIN
+#  endif
+#endif
+
+/* returns HB_TRUE and fills pResult when the product of integer numbers
+ * fits in HB_MAXINT, HB_FALSE means that the product has to be calculated
+ * using floating point numbers
+ */
+#if ! defined( HB_LONG_LONG_OFF )
+static HB_BOOL hb_vmMultInt( PHB_ITEM pResult, HB_MAXINT n1, HB_MAXINT n2 )
+{
+   HB_MAXINT nResult;
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_vmMultInt(%p,%" PFHL "d,%" PFHL "d)", ( void * ) pResult, n1, n2 ) );
+
+#if defined( HB_MUL_OVERFLOW_BUILTIN )
+   /* returns true on overflow, nResult then holds the wrapped value
+    * and is ignored
+    */
+   if( ! __builtin_mul_overflow( n1, n2, &nResult ) )
+   {
+      if( HB_IS_COMPLEX( pResult ) )
+         hb_itemClear( pResult );
+      HB_ITEM_PUT_NUMINTRAW( pResult, nResult );
+      return HB_TRUE;
+   }
+#else /* portable C89 code */
+   {
+      HB_MAXUINT u1, u2, uLimit, uProd;
+      HB_BOOL fNeg1 = n1 < 0;
+      HB_BOOL fNeg2 = n2 < 0;
+      HB_BOOL fNegRes = fNeg1 != fNeg2;
+      HB_BOOL fOverflow;
+
+      /* magnitudes calculated using unsigned arithmetic which is defined
+       * modulo 2^N so it's safe for minimal value
+       */
+      u1 = fNeg1 ? ( HB_MAXUINT ) 0 - ( HB_MAXUINT ) n1 : ( HB_MAXUINT ) n1;
+      u2 = fNeg2 ? ( HB_MAXUINT ) 0 - ( HB_MAXUINT ) n2 : ( HB_MAXUINT ) n2;
+
+      if( u1 == 0 || u2 == 0 )
+         fOverflow = HB_FALSE;
+      else
+      {
+         /* maximal value for positive results, maximal value + 1
+          * (absolute value of minimal one) for negative ones
+          */
+         uLimit = ( HB_MAXUINT ) HB_VMLONG_MAX + ( fNegRes ? 1 : 0 );
+         fOverflow = u1 > uLimit / u2;
+      }
+
+      if( ! fOverflow )
+      {
+         uProd = u1 * u2;           /* <= uLimit, cannot wrap */
+
+         if( ! fNegRes )
+            nResult = ( HB_MAXINT ) uProd;
+         else if( uProd > ( HB_MAXUINT ) HB_VMLONG_MAX )
+            nResult = HB_VMLONG_MIN;  /* uProd == HB_VMLONG_MAX + 1 */
+         else
+            nResult = - ( HB_MAXINT ) uProd;
+
+         if( HB_IS_COMPLEX( pResult ) )
+            hb_itemClear( pResult );
+         HB_ITEM_PUT_NUMINTRAW( pResult, nResult );
+         return HB_TRUE;
+      }
+   }
+#endif /* HB_MUL_OVERFLOW_BUILTIN */
+
+   return HB_FALSE;
+}
+#endif /* HB_LONG_LONG_OFF */
+
 static void hb_vmMult( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
 {
    HB_TRACE( HB_TR_DEBUG, ( "hb_vmMult(%p,%p,%p)", ( void * ) pResult, ( void * ) pItem1, ( void * ) pItem2 ) );
 
-#if -( HB_VMLONG_MAX / HB_VMINT_MIN ) >= HB_VMINT_MAX && 1
+#if ! defined( HB_LONG_LONG_OFF )
+   if( HB_IS_NUMINT( pItem1 ) && HB_IS_NUMINT( pItem2 ) &&
+       hb_vmMultInt( pResult,
+                     HB_ITEM_GET_NUMINTRAW( pItem1 ),
+                     HB_ITEM_GET_NUMINTRAW( pItem2 ) ) )
+      return;
+   else  /* overflow: use floating point numbers */
+#elif -( HB_VMLONG_MAX / HB_VMINT_MIN ) >= HB_VMINT_MAX && 1
    if( HB_IS_INTEGER( pItem1 ) && HB_IS_INTEGER( pItem2 ) )
    {
       HB_MAXINT nResult = ( HB_MAXINT ) pItem1->item.asInteger.value *
@@ -11155,11 +11248,19 @@ HB_BOOL hb_xvmMultByInt( HB_LONG lValue )
 
    if( HB_IS_NUMERIC( pValue ) )
    {
-      int iDec;
-      double dValue = hb_itemGetNDDec( pValue, &iDec );
+#if ! defined( HB_LONG_LONG_OFF )
+      if( ! HB_IS_NUMINT( pValue ) ||
+          ! hb_vmMultInt( pValue, HB_ITEM_GET_NUMINTRAW( pValue ), lValue ) )
+      {
+#endif
+         int iDec;
+         double dValue = hb_itemGetNDDec( pValue, &iDec );
 
-      hb_itemPutNumType( pValue, dValue * lValue, iDec,
-                         HB_ITEM_TYPERAW( pValue ), HB_IT_INTEGER );
+         hb_itemPutNumType( pValue, dValue * lValue, iDec,
+                            HB_ITEM_TYPERAW( pValue ), HB_IT_INTEGER );
+#if ! defined( HB_LONG_LONG_OFF )
+      }
+#endif
    }
    else if( hb_objHasOperator( pValue, HB_OO_OP_MULT ) )
    {
