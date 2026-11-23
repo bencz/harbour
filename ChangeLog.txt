@@ -7,6 +7,30 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-23 20:18 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    ! fixed SWITCH statement with CASE values which do not fit in 32-bit
+      integer. HB_P_PUSHLONGLONG in SWITCH table was not recognized, pcode
+      pointer was not moved and following case values and jumps were
+      executed as normal pcode, so wrong CASE branch was selected, e.g.
+      SWITCH 7 with CASE 5000000000 entered CASE 5000000000 branch
+
+  * src/compiler/gencc.c
+    ! fixed -gc3 C code generated for SWITCH statement with CASE values
+      which do not fit in 32-bit integer. HB_P_PUSHLONGLONG in SWITCH table
+      was not recognized and harbour generated wrong labels or failed with
+      internal error 9100 (invalid opcode)
+    ! use HB_MAXINT instead of long for SWITCH value in generated code,
+      it was truncated on platforms with 32-bit long, e.g. Win64
+    + added hb_gencc_switchConst() which generates CASE constants as
+      expressions which are safe for C90 rules and compilers without LL
+      suffix support, e.g. -2147483648L is unsigned in C90 when long is
+      32-bit and minimal HB_MAXINT value cannot be negated
+
+  * utils/hbtest/rt_hvma.prg
+    + added tests for SWITCH with CASE values which do not fit in 32-bit
+      integer
+
 2026-11-23 20:05 UTC-0300 Alexandre Bencz
   * include/hbsetup.h
     + added HB_NOINLINE_ATTR macro (GCC >= 3.1 and MSVC >= 1400)

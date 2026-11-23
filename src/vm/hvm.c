@@ -5054,6 +5054,15 @@ static const HB_BYTE * hb_vmSwitch( const HB_BYTE * pCode, HB_USHORT casesCnt )
                pCode += 5;
                break;
 
+            case HB_P_PUSHLONGLONG:
+               /* CASE values which do not fit in 32-bit integer */
+               if( HB_IS_NUMINT( pSwitch ) )
+               {
+                  fFound = HB_ITEM_GET_NUMINTRAW( pSwitch ) == HB_PCODE_MKLONGLONG( &pCode[ 1 ] );
+               }
+               pCode += 9;
+               break;
+
             case HB_P_PUSHSTRSHORT:
                if( HB_IS_STRING( pSwitch ) )
                {
