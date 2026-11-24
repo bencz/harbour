@@ -7,6 +7,20 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 07:30 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed parameters passed by reference to new thread, e.g.
+      hb_threadStart( @func(), @var ). Local variable was detached but
+      the parameter was still a reference to the HVM stack of the parent
+      thread, so the new thread accessed the stack of other thread and
+      when the parent function returned it read and changed items used
+      by other functions, e.g. local variables.
+      Now such parameters are replaced with references to detached
+      variables.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for local variable passed by reference to new thread
+
 2026-11-24 07:21 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed hb_threadMutexSyncSignal() / hb_threadMutexSyncWait() used by

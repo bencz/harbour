@@ -1128,7 +1128,17 @@ PHB_THREADSTATE hb_threadStateClone( HB_ULONG ulAttr, PHB_ITEM pParams )
          {
             PHB_ITEM pParam = hb_arrayGetItemPtr( pParams, nParam );
             if( HB_IS_BYREF( pParam ) )
-               hb_memvarDetachLocal( pParam );
+            {
+               PHB_ITEM pLocal = hb_memvarDetachLocal( pParam );
+
+               /* replace the reference to local variable on the HVM stack
+                * of current thread, which may be released or reused before
+                * the new thread uses the parameter, with the reference to
+                * the detached variable
+                */
+               if( pLocal != pParam )
+                  hb_itemCopy( pParam, pLocal );
+            }
          }
       }
       pThread->pParams = pParams;

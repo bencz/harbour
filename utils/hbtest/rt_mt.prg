@@ -52,12 +52,17 @@
 #define N_THREADS 5
 #define N_JOBS    1000
 
+#ifdef __HARBOUR__
+STATIC s_aMTRef
+#endif
+
 PROCEDURE Main_MT()
 
 #ifdef __HARBOUR__
    IF hb_mtvm()
       HBTEST DO_MTTES1()              IS "OK"
       HBTEST DO_MTTES2()              IS "3"
+      HBTEST DO_MTTES3()              IS "1/123"
    ENDIF
 #endif
 
@@ -137,6 +142,39 @@ STATIC PROCEDURE thSyncWait( mtxSync, mtxCount, aCount )
    ENDIF
 
    RETURN
+
+/* local variable passed by reference to new thread cannot be accessed
+   on the HVM stack of parent thread after the function returns */
+STATIC FUNCTION DO_MTTES3()
+
+   s_aMTRef := { hb_mutexCreate(), NIL }
+   TRefStarter()
+
+   RETURN TRefFiller()
+
+STATIC PROCEDURE TRefStarter()
+
+   LOCAL x := 7
+
+   s_aMTRef[ 2 ] := hb_threadStart( @thRefWriter(), s_aMTRef[ 1 ], @x )
+
+   RETURN
+
+STATIC FUNCTION TRefFiller()
+
+   LOCAL a := 1, b := 1, c := 1, d := 1, r
+
+   hb_mutexNotify( s_aMTRef[ 1 ] )
+   hb_threadJoin( s_aMTRef[ 2 ], @r )
+
+   RETURN hb_ntos( a * b * c * d ) + "/" + hb_ntos( r )
+
+STATIC FUNCTION thRefWriter( mtx, x )
+
+   hb_mutexSubscribe( mtx )
+   x := 123
+
+   RETURN x
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 
