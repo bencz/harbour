@@ -7,6 +7,14 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 12:20 UTC-0300 Alexandre Bencz
+  * include/hbcrypto.h
+  * src/rtl/sha2.c
+    + added SHA-384 and SHA-512 implementation for builds without 64-bit
+      integer type, 64-bit values are emulated by pairs of 32-bit values.
+      Such builds could not be compiled before. Builds with 64-bit integer
+      type use unchanged code.
+
 2026-11-24 12:16 UTC-0300 Alexandre Bencz
   * src/pp/ppcore.c
     + added __HB_INT64__ macro predefined when compiler supports 64-bit
