@@ -686,6 +686,12 @@ PROCEDURE Main_MATH()
    HBTEST TFoldArgs()                     IS "4/2/2/.T./-1/A/65/.F./8"
    HBTEST TFoldArgsMacro()                IS "65/A/2/A/.F./4/-1/.T./.T./9"
 
+   /* other elements of array literal with index are evaluated */
+   HBTEST TArrLitIdx()                    IS "2/1/2/2/3/x/5/1"
+   HBTEST { { .T. => 1 }, 2 }[ 2 ]        IS "E 2 BASE 1133 Bound error (array assign) OS:0 #:0 A:3:H:;L:.T.;N:1 "
+   HBTEST Len( { { NIL => 1 } } )         IS "E 2 BASE 1133 Bound error (array assign) OS:0 #:0 A:3:H:;U:NIL;N:1 "
+   HBTEST { { 1 => 2, "a" => { 3 } }, 5 }[ 2 ] IS 5
+
 #endif
 
 #ifdef __HARBOUR__
@@ -860,6 +866,21 @@ STATIC FUNCTION TRandGen( nCount )
 
 STATIC FUNCTION TChrNum( n )
    RETURN Asc( Chr( n ) )
+
+STATIC FUNCTION TArrLitIdx()
+
+   LOCAL n := 0, cResult
+
+   MEMVAR p_nIdx
+
+   PRIVATE p_nIdx := 0
+
+   cResult := hb_ntos( { n++, 2 }[ 2 ] ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_ntos( { 1, 2, n++ }[ 2 ] ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_ntos( { 1, 2, 3 }[ 3 ] ) + "/" + { "x", { 1 }, {|| 2 } }[ 1 ] + "/"
+   cResult += hb_ntos( &( "{ p_nIdx++, 5 }[ 2 ]" ) ) + "/" + hb_ntos( p_nIdx )
+
+   RETURN cResult
 
 STATIC FUNCTION TFoldArgs()
 

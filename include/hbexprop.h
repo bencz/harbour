@@ -195,6 +195,7 @@ extern HB_EXPORT_INT HB_BOOL hb_compExprReduceUPPER( PHB_EXPR, HB_COMP_DECL );
 extern HB_EXPORT_INT HB_BOOL hb_compExprReduceMIN( PHB_EXPR, HB_COMP_DECL );
 extern HB_EXPORT_INT HB_BOOL hb_compExprReduceMAX( PHB_EXPR, HB_COMP_DECL );
 extern HB_EXPORT_INT HB_BOOL hb_compExprReduceBitFunc( PHB_EXPR, HB_MAXINT nResult, HB_BOOL fBool, HB_COMP_DECL );
+extern HB_EXPORT_INT HB_BOOL hb_compExprIsConst( PHB_EXPR );
 
 HB_EXTERN_END
 

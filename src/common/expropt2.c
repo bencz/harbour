@@ -2229,42 +2229,60 @@ HB_BOOL hb_compExprReduceBCHAR( PHB_EXPR pSelf, HB_COMP_DECL )
    return HB_FALSE;
 }
 
-/* check if all elements of array or hash literal are constant values,
- * so they can be removed by compile time optimization without changing
- * the program behavior, i.e. there are no function calls, assignments,
- * variables (which may not exist) or other expressions which may have
- * side effects or generate runtime errors
+static HB_BOOL hb_compExprIsConstList( PHB_EXPR pExpr );
+
+/* check if expression is a constant value, so it can be removed by
+ * compile time optimization without changing the program behavior,
+ * i.e. there are no function calls, assignments, variables (which may
+ * not exist) or other expressions which may have side effects or
+ * generate runtime errors
  */
+HB_BOOL hb_compExprIsConst( PHB_EXPR pExpr )
+{
+   switch( pExpr->ExprType )
+   {
+      case HB_ET_NIL:
+      case HB_ET_NUMERIC:
+      case HB_ET_DATE:
+      case HB_ET_TIMESTAMP:
+      case HB_ET_STRING:
+      case HB_ET_LOGICAL:
+         return HB_TRUE;
+
+      case HB_ET_CODEBLOCK:
+         /* codeblocks with early macro substitution, i.e. {|| &var },
+            evaluate macros when they are created */
+         return ( pExpr->value.asCodeblock.flags & HB_BLOCK_MACROVAR ) == 0;
+
+      case HB_ET_ARRAY:
+      case HB_ET_HASH:
+         return hb_compExprIsConstList( pExpr );
+
+      default:
+         return HB_FALSE;
+   }
+}
+
+/* check if all elements of array or hash literal are constant values */
 static HB_BOOL hb_compExprIsConstList( PHB_EXPR pExpr )
 {
+   HB_BOOL fHash = pExpr->ExprType == HB_ET_HASH, fKey = HB_TRUE;
+
    for( pExpr = pExpr->value.asList.pExprList; pExpr; pExpr = pExpr->pNext )
    {
-      switch( pExpr->ExprType )
+      /* keys and values of hash literal are stored alternately,
+         keys of other types generate runtime error */
+      if( fHash && fKey )
       {
-         case HB_ET_NIL:
-         case HB_ET_NUMERIC:
-         case HB_ET_DATE:
-         case HB_ET_TIMESTAMP:
-         case HB_ET_STRING:
-         case HB_ET_LOGICAL:
-            break;
-
-         case HB_ET_CODEBLOCK:
-            /* codeblocks with early macro substitution, i.e. {|| &var },
-               evaluate macros when they are created */
-            if( pExpr->value.asCodeblock.flags & HB_BLOCK_MACROVAR )
-               return HB_FALSE;
-            break;
-
-         case HB_ET_ARRAY:
-         case HB_ET_HASH:
-            if( ! hb_compExprIsConstList( pExpr ) )
-               return HB_FALSE;
-            break;
-
-         default:
+         if( pExpr->ExprType != HB_ET_NUMERIC &&
+             pExpr->ExprType != HB_ET_STRING &&
+             pExpr->ExprType != HB_ET_DATE &&
+             pExpr->ExprType != HB_ET_TIMESTAMP )
             return HB_FALSE;
       }
+      else if( ! hb_compExprIsConst( pExpr ) )
+         return HB_FALSE;
+      fKey = ! fKey;
    }
    return HB_TRUE;
 }

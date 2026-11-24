@@ -7,6 +7,27 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:47 UTC-0300 Alexandre Bencz
+  * include/hbexprb.c
+    ! fixed compile time optimization of literal array with index used
+      by compiler and macro compiler. Other elements of array were
+      removed even if they had side effects, e.g. n++ was not executed
+      in { n++, 2 }[ 2 ]. Now it is optimized only when other elements
+      are constant values.
+
+  * include/hbexprop.h
+  * src/common/expropt2.c
+  * src/harbour.def
+    + added hb_compExprIsConst() to check if expression is constant
+      value which can be removed by compile time optimization
+    ! hash literals with keys of type which cannot be used in hashes,
+      e.g. { .T. => 1 }, are not constant values. Len() and Empty() of
+      array literals with such hashes were optimized without runtime
+      error.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for literal arrays with index
+
 2026-11-24 13:39 UTC-0300 Alexandre Bencz
   * include/hbdefs.h
     ! HB_CAST_INT(), HB_CAST_LONG(), HB_CAST_LONGLONG(), HB_CAST_MAXINT()

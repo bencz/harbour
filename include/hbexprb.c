@@ -1323,7 +1323,7 @@ static HB_EXPR_FUNC( hb_compExprUseArrayAt )
             if( pIdx->value.asNum.NumType == HB_ET_LONG )
                nIndex = ( HB_ISIZ ) pIdx->value.asNum.val.l;
             else
-               nIndex = ( HB_ISIZ ) pIdx->value.asNum.val.d;
+               nIndex = HB_CAST_ISIZ( pIdx->value.asNum.val.d );
 
             if( pExpr->ExprType == HB_ET_ARRAY )   /* is it a literal array */
             {
@@ -1339,28 +1339,43 @@ static HB_EXPR_FUNC( hb_compExprUseArrayAt )
                }
                else
                {
-                  pExpr = pExpr->value.asList.pExprList; /* the first element in the array */
-                  while( --nIndex && pExpr )
-                     pExpr = pExpr->pNext;
+                  PHB_EXPR pElem = pExpr->value.asList.pExprList;
+                  HB_BOOL fConst = HB_TRUE;
+                  HB_ISIZ nPos = 1;
 
-                  if( pExpr ) /* found ? */
+                  /* other elements are removed so the expression is reduced
+                     only when they are constant values without side effects,
+                     e.g. n++ has to be evaluated in { n++, 2 }[ 2 ] */
+                  pExpr = NULL;
+                  for( ; pElem; pElem = pElem->pNext, ++nPos )
                   {
-                     /* extract a single expression from the array
-                      */
-                     PHB_EXPR pNew = HB_COMP_EXPR_NEW( HB_ET_NONE );
-                     memcpy( pNew, pExpr, sizeof( HB_EXPR ) );
-                     /* This will suppress releasing of memory occupied by components of
-                      * the expression - we have just copied them into the new expression.
-                      * This method is simpler then traversing the list and releasing all
-                      * but this chosen one.
-                      */
-                     pExpr->ExprType = HB_ET_NONE;
-                     /* Here comes the magic */
-                     HB_COMP_EXPR_FREE( pSelf );
-                     pSelf = pNew;
+                     if( nPos == nIndex )
+                        pExpr = pElem;
+                     else if( ! hb_compExprIsConst( pElem ) )
+                        fConst = HB_FALSE;
                   }
-                  else if( ! HB_SUPPORT_ARRSTR )
-                     hb_compErrorBound( HB_COMP_PARAM, pIdx );
+
+                  if( fConst )
+                  {
+                     if( pExpr ) /* found ? */
+                     {
+                        /* extract a single expression from the array
+                         */
+                        PHB_EXPR pNew = HB_COMP_EXPR_NEW( HB_ET_NONE );
+                        memcpy( pNew, pExpr, sizeof( HB_EXPR ) );
+                        /* This will suppress releasing of memory occupied by components of
+                         * the expression - we have just copied them into the new expression.
+                         * This method is simpler then traversing the list and releasing all
+                         * but this chosen one.
+                         */
+                        pExpr->ExprType = HB_ET_NONE;
+                        /* Here comes the magic */
+                        HB_COMP_EXPR_FREE( pSelf );
+                        pSelf = pNew;
+                     }
+                     else if( ! HB_SUPPORT_ARRSTR )
+                        hb_compErrorBound( HB_COMP_PARAM, pIdx );
+                  }
                }
             }
 #if 0
