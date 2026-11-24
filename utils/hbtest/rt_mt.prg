@@ -70,6 +70,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES6()              IS ".T./ok"
       HBTEST DO_MTTES7()              IS ".F./.T./.T./.T."
       HBTEST DO_MTTES8()              IS "4/.T."
+      HBTEST DO_MTTES9()              IS "ok/.T./.F."
    ENDIF
 #endif
 
@@ -369,6 +370,36 @@ STATIC FUNCTION DO_MTTES8()
    nDone += hb_threadWait( thLong, 1 )
 
    RETURN hb_ntos( nDone ) + "/" + hb_ValToStr( hb_MilliSeconds() - nStart < 1000 )
+
+/* notifications have to be delivered to subscribers and not to threads
+   waiting for sync signals of the same mutex */
+STATIC FUNCTION DO_MTTES9()
+
+   LOCAL mtx, thSync, thSub, aRes, lStale
+
+   mtx := hb_mutexCreate()
+   thSync := hb_threadStart( {|| __clsSyncWait( mtx, 200 ) } )
+   hb_idleSleep( 0.05 )
+   thSub := hb_threadStart( @thSubTimed3(), mtx )
+   hb_idleSleep( 0.05 )
+   hb_mutexNotify( mtx, "ok" )
+   hb_threadJoin( thSub, @aRes )
+   /* only sync waiter is waiting, nothing should be queued */
+   hb_mutexNotifyAll( mtx, "all" )
+   lStale := hb_mutexSubscribe( mtx, 0 )
+   __clsSyncSignal( mtx )
+   hb_threadJoin( thSync )
+
+   RETURN hb_ValToStr( aRes[ 1 ] ) + "/" + hb_ValToStr( aRes[ 2 ] < 500 ) + "/" + ;
+          hb_ValToStr( lStale )
+
+STATIC FUNCTION thSubTimed3( mtx )
+
+   LOCAL nStart := hb_MilliSeconds(), xValue
+
+   hb_mutexSubscribe( mtx, 1, @xValue )
+
+   RETURN { xValue, hb_MilliSeconds() - nStart }
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 

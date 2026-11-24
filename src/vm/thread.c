@@ -1720,12 +1720,14 @@ typedef struct _HB_MUTEX
    int                lock_count;
    int                lockers;
    int                waiters;
+   int                syncwaiters;
    int                syncsignals;   /* generation counter of sync signals */
    PHB_ITEM           events;
    HB_THREAD_ID       owner;
    HB_RAWCRITICAL_T   mutex;
-   HB_RAWCOND_T       cond_l;
-   HB_RAWCOND_T       cond_w;
+   HB_RAWCOND_T       cond_l;        /* threads waiting for the lock */
+   HB_RAWCOND_T       cond_w;        /* threads waiting for notifications */
+   HB_RAWCOND_T       cond_s;        /* threads waiting for sync signals */
    struct _HB_MUTEX * pNext;
    struct _HB_MUTEX * pPrev;
 }
@@ -1803,6 +1805,8 @@ void hb_threadMutexUnsubscribeAll( void )
          HB_CRITICAL_LOCK( pMutex->mutex );
          if( pMutex->waiters )
             HB_COND_SIGNALN( pMutex->cond_w, pMutex->waiters );
+         if( pMutex->syncwaiters )
+            HB_COND_SIGNALN( pMutex->cond_s, pMutex->syncwaiters );
          HB_CRITICAL_UNLOCK( pMutex->mutex );
          pMutex = pMutex->pNext;
       }
@@ -1837,6 +1841,7 @@ static HB_GARBAGE_FUNC( hb_mutexDestructor )
 #  if ! defined( HB_COND_HARBOUR_SUPPORT )
    HB_COND_DESTROY( pMutex->cond_l );
    HB_COND_DESTROY( pMutex->cond_w );
+   HB_COND_DESTROY( pMutex->cond_s );
 #  endif
 #endif
 }
@@ -1888,6 +1893,7 @@ PHB_ITEM hb_threadMutexCreate( void )
 #  if ! defined( HB_COND_HARBOUR_SUPPORT )
    HB_COND_INIT( pMutex->cond_l );
    HB_COND_INIT( pMutex->cond_w );
+   HB_COND_INIT( pMutex->cond_s );
 #  endif
 #endif
 
@@ -1915,14 +1921,14 @@ void hb_threadMutexSyncSignal( PHB_ITEM pItemMtx )
       /* signal all threads waiting at this moment: each of them waits
          until the generation counter is changed so threads which start
          waiting after this signal cannot take it */
-      if( pMutex->waiters )
+      if( pMutex->syncwaiters )
       {
          pMutex->syncsignals = pMutex->syncsignals == INT_MAX ? 0 :
                                pMutex->syncsignals + 1;
-         if( pMutex->waiters == 1 )
-            HB_COND_SIGNAL( pMutex->cond_w );
+         if( pMutex->syncwaiters == 1 )
+            HB_COND_SIGNAL( pMutex->cond_s );
          else
-            HB_COND_SIGNALN( pMutex->cond_w, pMutex->waiters );
+            HB_COND_SIGNALN( pMutex->cond_s, pMutex->syncwaiters );
       }
 
       HB_CRITICAL_UNLOCK( pMutex->mutex );
@@ -1978,24 +1984,24 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
             while( pMutex->syncsignals == iSyncGen &&
                    hb_vmRequestQuery() == 0 )
             {
-               pMutex->waiters++;
+               pMutex->syncwaiters++;
 #  if defined( HB_PTHREAD_API )
-               pthread_cond_wait( &pMutex->cond_w, &pMutex->mutex );
+               pthread_cond_wait( &pMutex->cond_s, &pMutex->mutex );
 #  elif defined( HB_TASK_THREAD )
-               hb_taskWait( &pMutex->cond_w, &pMutex->mutex, HB_TASK_INFINITE_WAIT );
+               hb_taskWait( &pMutex->cond_s, &pMutex->mutex, HB_TASK_INFINITE_WAIT );
 #  elif defined( HB_COND_HARBOUR_SUPPORT )
-               _hb_thread_cond_wait( &pMutex->cond_w, &pMutex->mutex, HB_THREAD_INFINITE_WAIT );
+               _hb_thread_cond_wait( &pMutex->cond_s, &pMutex->mutex, HB_THREAD_INFINITE_WAIT );
 #  else
                HB_CRITICAL_UNLOCK( pMutex->mutex );
-               ( void ) HB_COND_WAIT( pMutex->cond_w );
+               ( void ) HB_COND_WAIT( pMutex->cond_s );
                HB_CRITICAL_LOCK( pMutex->mutex );
 #  endif
-               pMutex->waiters--;
+               pMutex->syncwaiters--;
             }
          }
          else
          {
-            pMutex->waiters++;
+            pMutex->syncwaiters++;
 #  if defined( HB_PTHREAD_API )
             {
                struct timespec ts;
@@ -2004,15 +2010,15 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
                while( pMutex->syncsignals == iSyncGen &&
                       hb_vmRequestQuery() == 0 )
                {
-                  if( pthread_cond_timedwait( &pMutex->cond_w, &pMutex->mutex, &ts ) != 0 )
+                  if( pthread_cond_timedwait( &pMutex->cond_s, &pMutex->mutex, &ts ) != 0 )
                      break;
                }
             }
 #  else
             {
-               /* the thread can be woken up by notification sent to other
-                * threads waiting for this mutex so wait in the loop until
-                * the signal is received or timeout passes
+               /* the thread can be woken up spuriously or by QUIT request
+                * so wait in the loop until the signal is received or
+                * timeout passes
                 */
                HB_MAXUINT timer = hb_timerGet() + ulMilliSec, curr;
 
@@ -2020,12 +2026,12 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
                       hb_vmRequestQuery() == 0 )
                {
 #     if defined( HB_TASK_THREAD )
-                  hb_taskWait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
+                  hb_taskWait( &pMutex->cond_s, &pMutex->mutex, ulMilliSec );
 #     elif defined( HB_COND_HARBOUR_SUPPORT )
-                  _hb_thread_cond_wait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
+                  _hb_thread_cond_wait( &pMutex->cond_s, &pMutex->mutex, ulMilliSec );
 #     else
                   HB_CRITICAL_UNLOCK( pMutex->mutex );
-                  ( void ) HB_COND_TIMEDWAIT( pMutex->cond_w, ulMilliSec );
+                  ( void ) HB_COND_TIMEDWAIT( pMutex->cond_s, ulMilliSec );
                   HB_CRITICAL_LOCK( pMutex->mutex );
 #     endif
                   curr = hb_timerGet();
@@ -2035,7 +2041,7 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
                }
             }
 #  endif
-            pMutex->waiters--;
+            pMutex->syncwaiters--;
          }
       }
 

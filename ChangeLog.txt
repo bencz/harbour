@@ -7,6 +7,24 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 09:59 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed lost notifications when threads wait for notifications
+      (hb_mutexSubscribe()) and for sync signals (__clsSyncWait() used by
+      class SYNC methods and Xbase++ compatible Signal class) of the same
+      mutex. They used the same conditional variable and counter of
+      waiting threads so hb_mutexNotify() could wake up thread waiting for
+      sync signal instead of subscriber which received the notification
+      only after timeout and hb_mutexNotifyAll() created events also for
+      threads waiting for sync signals which were left in the queue.
+      Now threads waiting for sync signals use their own conditional
+      variable and counter.
+    * hb_mutexQueueInfo() returns only number of threads waiting for
+      notifications, threads waiting for sync signals are not counted
+
+  * utils/hbtest/rt_mt.prg
+    + added test for notifications and sync signals of the same mutex
+
 2026-11-24 09:46 UTC-0300 Alexandre Bencz
   * include/hbthread.h
   * src/vm/hvm.c
