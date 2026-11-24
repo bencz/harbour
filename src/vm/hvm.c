@@ -3556,9 +3556,9 @@ static void hb_vmMinus( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
 
 /* returns HB_TRUE and fills pResult when the product of integer numbers
  * fits in HB_MAXINT, HB_FALSE means that the product has to be calculated
- * using floating point numbers
+ * using floating point numbers. It works with any size of HB_MAXINT so
+ * it's used also in builds without 64-bit integers.
  */
-#if ! defined( HB_LONG_LONG_OFF )
 static HB_BOOL hb_vmMultInt( PHB_ITEM pResult, HB_MAXINT n1, HB_MAXINT n2 )
 {
    HB_MAXINT nResult;
@@ -3622,30 +3622,17 @@ static HB_BOOL hb_vmMultInt( PHB_ITEM pResult, HB_MAXINT n1, HB_MAXINT n2 )
 
    return HB_FALSE;
 }
-#endif /* HB_LONG_LONG_OFF */
 
 static void hb_vmMult( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
 {
    HB_TRACE( HB_TR_DEBUG, ( "hb_vmMult(%p,%p,%p)", ( void * ) pResult, ( void * ) pItem1, ( void * ) pItem2 ) );
 
-#if ! defined( HB_LONG_LONG_OFF )
    if( HB_IS_NUMINT( pItem1 ) && HB_IS_NUMINT( pItem2 ) &&
        hb_vmMultInt( pResult,
                      HB_ITEM_GET_NUMINTRAW( pItem1 ),
                      HB_ITEM_GET_NUMINTRAW( pItem2 ) ) )
       return;
    else  /* overflow: use floating point numbers */
-#elif -( HB_VMLONG_MAX / HB_VMINT_MIN ) >= HB_VMINT_MAX && 1
-   if( HB_IS_INTEGER( pItem1 ) && HB_IS_INTEGER( pItem2 ) )
-   {
-      HB_MAXINT nResult = ( HB_MAXINT ) pItem1->item.asInteger.value *
-                          ( HB_MAXINT ) pItem2->item.asInteger.value;
-      if( HB_IS_COMPLEX( pResult ) )
-         hb_itemClear( pResult );
-      HB_ITEM_PUT_NUMINTRAW( pResult, nResult );
-   }
-   else
-#endif
    if( HB_IS_NUMERIC( pItem1 ) && HB_IS_NUMERIC( pItem2 ) )
    {
       int iDec1, iDec2;
@@ -11401,19 +11388,15 @@ HB_BOOL hb_xvmMultByInt( HB_LONG lValue )
 
    if( HB_IS_NUMERIC( pValue ) )
    {
-#if ! defined( HB_LONG_LONG_OFF )
       if( ! HB_IS_NUMINT( pValue ) ||
           ! hb_vmMultInt( pValue, HB_ITEM_GET_NUMINTRAW( pValue ), lValue ) )
       {
-#endif
          int iDec;
          double dValue = hb_itemGetNDDec( pValue, &iDec );
 
          hb_itemPutNumType( pValue, dValue * lValue, iDec,
                             HB_ITEM_TYPERAW( pValue ), HB_IT_INTEGER );
-#if ! defined( HB_LONG_LONG_OFF )
       }
-#endif
    }
    else if( hb_objHasOperator( pValue, HB_OO_OP_MULT ) )
    {

@@ -7,6 +7,15 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 11:34 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    * use hb_vmMultInt() also in builds with HB_LONG_LONG_OFF macro.
+      It works with any size of HB_MAXINT and HB_LONG_LONG_OFF does not
+      mean that 64-bit integers are not supported, e.g. on 64-bit *nixes
+      HB_MAXINT is long, so exact integer multiplication was disabled
+      there. The old code which multiplied 32-bit integers in HB_MAXINT
+      when it was bigger is covered by hb_vmMultInt().
+
 2026-11-24 11:28 UTC-0300 Alexandre Bencz
   * src/rdd/dbcmd.c
     ! fixed crash (infinite recursion) when relations between work areas
