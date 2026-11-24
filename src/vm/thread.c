@@ -1784,13 +1784,14 @@ void hb_threadMutexUnsubscribeAll( void )
       PHB_MUTEX pMutex = s_pMutexList;
       do
       {
+         /* waiters cannot be checked before the mutex is locked, thread
+          * which has just checked QUIT request may increase it and start
+          * waiting after this check and it would never be woken up
+          */
+         HB_CRITICAL_LOCK( pMutex->mutex );
          if( pMutex->waiters )
-         {
-            HB_CRITICAL_LOCK( pMutex->mutex );
-            if( pMutex->waiters )
-               HB_COND_SIGNALN( pMutex->cond_w, pMutex->waiters );
-            HB_CRITICAL_UNLOCK( pMutex->mutex );
-         }
+            HB_COND_SIGNALN( pMutex->cond_w, pMutex->waiters );
+         HB_CRITICAL_UNLOCK( pMutex->mutex );
          pMutex = pMutex->pNext;
       }
       while( pMutex != s_pMutexList );

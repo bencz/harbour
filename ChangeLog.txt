@@ -7,6 +7,14 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 09:19 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed possible hangup at application exit in
+      hb_threadMutexUnsubscribeAll(). It checked number of waiting threads
+      before the mutex was locked so thread which has just checked QUIT
+      request and was going to wait for notification could be skipped and
+      never woken up. Now the mutex is always locked before this check.
+
 2026-11-24 09:13 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed timed waits in hb_threadMutexTimedLock(),
