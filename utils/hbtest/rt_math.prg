@@ -691,6 +691,28 @@ PROCEDURE Main_MATH()
    HBTEST ( l := 4611686018427387904, l * 2 > 0 )            IS .T.
    HBTEST ( l := -9223372036854775807 - 1, l * -1 > 0 )      IS .T.
    HBTEST TMultC5( -9223372036854775807 - 1 )                 IS .T.
+   /* division and modulus of minimal integer value by -1 */
+   HBTEST ( -9223372036854775807 - 1 ) % -1                   IS 0
+   HBTEST ( -9223372036854775807 - 1 ) / -1 > 0               IS .T.
+   HBTEST &( "( -9223372036854775807 - 1 ) % -1" )            IS 0
+   HBTEST &( "( -9223372036854775807 - 1 ) / -1" ) > 0        IS .T.
+   HBTEST ( l := -9223372036854775807 - 1, l % -1 == 0 )      IS .T.
+   HBTEST TModV( -9223372036854775807 - 1, -1 )               IS .T.
+   HBTEST TModC( -9223372036854775807 - 1 )                   IS .T.
+   HBTEST TDivC( -9223372036854775807 - 1 )                   IS .T.
+   HBTEST ( l := -7, l % -1 == 0 .AND. l % 3 == -1 .AND. l / -1 == 7 ) IS .T.
+   HBTEST hb_ntos( 10 / -1 ) + hb_ntos( 10 % -1 )             IS "-100"
+   /* the same in preprocessor #if expressions */
+#if ( ( -9223372036854775807 - 1 ) % -1 ) == 0 && ( 7 % -1 ) == 0 && ( -7 % 3 ) == -1
+   HBTEST "PP %"                                              IS "PP %"
+#else
+   HBTEST "PP %"                                              IS "PP % failed"
+#endif
+#if ( ( -9223372036854775807 - 1 ) / -1 ) < 0 && ( 7 / -1 ) == -7 && ( -7 / -1 ) == 7
+   HBTEST "PP /"                                              IS "PP /"
+#else
+   HBTEST "PP /"                                              IS "PP / failed"
+#endif
 #endif
 
    RETURN
@@ -708,6 +730,15 @@ STATIC FUNCTION TMultC2( n )
 
 STATIC FUNCTION TMultC3( n )
    RETURN hb_ntos( n * -2 )
+
+STATIC FUNCTION TModV( n1, n2 )
+   RETURN n1 % n2 == 0
+
+STATIC FUNCTION TModC( n )
+   RETURN n % -1 == 0
+
+STATIC FUNCTION TDivC( n )
+   RETURN n / -1 > 0
 
 STATIC FUNCTION TMultC5( n )
    RETURN n * -1 > 0

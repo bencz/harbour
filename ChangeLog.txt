@@ -7,6 +7,28 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-23 21:00 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    ! fixed crash (SIGFPE) in modulus of minimal integer value by -1,
+      e.g. n := -9223372036854775807 - 1; ? n % -1
+      Modulus of division by -1 is always 0 and it's not calculated now.
+      Fixed in hb_vmModulus() and in hb_xvmModulusByInt() used by -gc3.
+
+  * src/common/expropt2.c
+    ! fixed compiler and macro compiler crash (SIGFPE) in compile time
+      optimization of minimal integer value divided by -1 or modulus of such
+      division, e.g. ( -9223372036854775807 - 1 ) % -1. Division by -1 is
+      not checked using modulus now and the result which does not fit in
+      HB_MAXINT is returned as double.
+
+  * src/pp/ppcore.c
+    ! fixed compiler and __pp_Process() crash (SIGFPE) in #if expressions
+      with minimal integer value divided by -1 or modulus of such division.
+      Division by -1 is calculated as negation using unsigned arithmetic.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for division and modulus of minimal integer value by -1
+
 2026-11-23 20:50 UTC-0300 Alexandre Bencz
   * include/hbdefs.h
     ! fixed upper limit in HB_DBL_LIM_LONG() and HB_DBL_LIM_INT64() macros.
