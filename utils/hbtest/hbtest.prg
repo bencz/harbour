@@ -339,6 +339,14 @@ STATIC PROCEDURE TEST_BEGIN( cParam )
 
    RETURN
 
+#ifdef __HARBOUR__
+/* HVM supports 64-bit integer numbers, tests which check results of
+   64-bit integer arithmetic use it, the code which cannot be compiled
+   without 64-bit integer numbers is guarded by __HB_INT64__ macro */
+FUNCTION hbtest_Int64()
+   RETURN hb_bitShift( 1, 62 ) != 0
+#endif
+
 FUNCTION TEST_DBFAvail()
    RETURN s_lDBFAvail
 

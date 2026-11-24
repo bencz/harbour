@@ -635,17 +635,21 @@ PROCEDURE Main_HVMA()
    /* SWITCH with CASE values which do not fit in 32-bit integer */
    HBTEST THVMSwitch( 1 )                         IS "one"
    HBTEST THVMSwitch( 7 )                         IS "seven"
-   HBTEST THVMSwitch( 5000000000 )                IS "big"
-   HBTEST THVMSwitch( -5000000000 )               IS "negbig"
-   HBTEST THVMSwitch( 9223372036854775807 )       IS "max"
-   HBTEST THVMSwitch( 4294967297 )                IS "other"
-   HBTEST THVMSwitch( 4294967303 )                IS "other"
    HBTEST THVMSwitch( 0 )                         IS "other"
    HBTEST THVMSwitch( "a" )                       IS "str"
    HBTEST THVMSwitch( "b" )                       IS "other"
-   HBTEST THVMSwitch( -2147483648 )               IS "int32min"
-   HBTEST THVMSwitch( 2147483648 )                IS "other"
-   HBTEST THVMSwitch( -9223372036854775807 - 1 )  IS "min"
+#ifdef __HB_INT64__
+   IF hbtest_Int64()
+      HBTEST THVMSwitch( 5000000000 )                IS "big"
+      HBTEST THVMSwitch( -5000000000 )               IS "negbig"
+      HBTEST THVMSwitch( 9223372036854775807 )       IS "max"
+      HBTEST THVMSwitch( 4294967297 )                IS "other"
+      HBTEST THVMSwitch( 4294967303 )                IS "other"
+      HBTEST THVMSwitch( -2147483648 )               IS "int32min"
+      HBTEST THVMSwitch( 2147483648 )                IS "other"
+      HBTEST THVMSwitch( -9223372036854775807 - 1 )  IS "min"
+   ENDIF
+#endif
 
    /* integer constants in functions (-gc3 uses special functions for them)
       have to be created in the same way as in pcode */
@@ -655,7 +659,9 @@ PROCEDURE Main_HVMA()
    HBTEST RTSTR( TIntConstRet2() )                IS " 10          5"
    HBTEST RTSTR( TIntConstRet3() )                IS " 11  5000000000"
    HBTEST TIntConstEdge()                         IS " 20          -2147483648| 20          -2147483648| 20          -1000000000| 11  9999999999| 12  10000000000"
-   HBTEST TIntConstMin()                          IS "-9223372036854775808|-9223372036854775808|T|-9223372036854775807|-2147483648|T"
+   IF hbtest_Int64()
+      HBTEST TIntConstMin()                          IS "-9223372036854775808|-9223372036854775808|T|-9223372036854775807|-2147483648|T"
+   ENDIF
 #endif
 
    RETURN
@@ -707,6 +713,7 @@ STATIC FUNCTION THVMSwitch( xValue )
       RETURN "one"
    CASE 7
       RETURN "seven"
+#ifdef __HB_INT64__
    CASE 5000000000
       RETURN "big"
    CASE -5000000000
@@ -717,6 +724,7 @@ STATIC FUNCTION THVMSwitch( xValue )
       RETURN "int32min"
    CASE -9223372036854775807 - 1
       RETURN "min"
+#endif
    CASE "a"
       RETURN "str"
    ENDSWITCH

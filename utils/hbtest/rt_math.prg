@@ -664,70 +664,76 @@ PROCEDURE Main_MATH()
 #endif
 
 #ifdef __HARBOUR__
-   /* exact multiplication of integer numbers whose product fits in HB_MAXINT */
-   HBTEST TMultV( 99999999, 100000001 )                       IS "9999999999999999"
-   HBTEST TMultV( 18368730161825351, -1 )                     IS "-18368730161825351"
-   HBTEST TMultV( -18368730161825351, -1 )                    IS "18368730161825351"
-   HBTEST TMultV( 3037000499, 3037000499 )                    IS "9223372030926249001"
-   HBTEST TMultV( 9223372036854775807, 1 )                    IS "9223372036854775807"
-   HBTEST TMultV( -9223372036854775807 - 1, 1 )               IS "-9223372036854775808"
-   HBTEST TMultV( 4611686018427387904, -2 )                   IS "-9223372036854775808"
-   HBTEST ( l := 4294967296, l * l == 18446744073709551616.0 ) IS .T.
-   /* multiplication by integer constant, -gc3 uses hb_xvmMultByInt()
-      in functions but not in codeblocks so it's tested in functions */
-   HBTEST TMultC1( 99999999 )                                 IS "9999999999999999"
-   HBTEST TMultC2( 18368730161825351 )                        IS "-18368730161825351"
-   HBTEST TMultC2( -9223372036854775807 )                     IS "9223372036854775807"
-   HBTEST TMultC3( 4611686018427387904 )                      IS "-9223372036854775808"
-   HBTEST TMultC3( 2.5 )                                      IS "-5.0"
-   HBTEST TMultC4( 4294967296 )                               IS .T.
-   /* compile time optimization of integer expressions near the limits */
-   HBTEST hb_ntos( 9223372036854775800 + 7 )                  IS "9223372036854775807"
-   HBTEST hb_ntos( 9223372036854775807 - 0 )                  IS "9223372036854775807"
-   HBTEST hb_ntos( 4611686018427387903 * 2 )                  IS "9223372036854775806"
-   HBTEST hb_ntos( -9223372036854775807 - 1 )                 IS "-9223372036854775808"
-   HBTEST hb_ntos( -4611686018427387904 * 2 )                 IS "-9223372036854775808"
-   HBTEST hb_ntos( &( "9223372036854775800 + 7" ) )           IS "9223372036854775807"
-   HBTEST 9223372036854775807 + 1 > 0                         IS .T.
-   HBTEST -9223372036854775807 - 2 < 0                        IS .T.
-   HBTEST -4611686018427387905 * 2 < 0                        IS .T.
-   HBTEST -9223372036854775000 - 1000 < 0                     IS .T.
-   HBTEST &( "-9223372036854775807 - 2" ) < 0                 IS .T.
-   /* overflow to 2^63 has to give positive floating point number */
-   HBTEST ( l := 4611686018427387904, l * 2 > 0 )            IS .T.
-   HBTEST ( l := -9223372036854775807 - 1, l * -1 > 0 )      IS .T.
-   HBTEST TMultC5( -9223372036854775807 - 1 )                 IS .T.
-   /* division and modulus of minimal integer value by -1 */
-   HBTEST ( -9223372036854775807 - 1 ) % -1                   IS 0
-   HBTEST ( -9223372036854775807 - 1 ) / -1 > 0               IS .T.
-   HBTEST &( "( -9223372036854775807 - 1 ) % -1" )            IS 0
-   HBTEST &( "( -9223372036854775807 - 1 ) / -1" ) > 0        IS .T.
-   HBTEST ( l := -9223372036854775807 - 1, l % -1 == 0 )      IS .T.
-   HBTEST TModV( -9223372036854775807 - 1, -1 )               IS .T.
-   HBTEST TModC( -9223372036854775807 - 1 )                   IS .T.
-   HBTEST TDivC( -9223372036854775807 - 1 )                   IS .T.
+#ifdef __HB_INT64__
+   IF hbtest_Int64()
+      /* exact multiplication of integer numbers whose product fits in HB_MAXINT */
+      HBTEST TMultV( 99999999, 100000001 )                       IS "9999999999999999"
+      HBTEST TMultV( 18368730161825351, -1 )                     IS "-18368730161825351"
+      HBTEST TMultV( -18368730161825351, -1 )                    IS "18368730161825351"
+      HBTEST TMultV( 3037000499, 3037000499 )                    IS "9223372030926249001"
+      HBTEST TMultV( 9223372036854775807, 1 )                    IS "9223372036854775807"
+      HBTEST TMultV( -9223372036854775807 - 1, 1 )               IS "-9223372036854775808"
+      HBTEST TMultV( 4611686018427387904, -2 )                   IS "-9223372036854775808"
+      HBTEST ( l := 4294967296, l * l == 18446744073709551616.0 ) IS .T.
+      /* multiplication by integer constant, -gc3 uses hb_xvmMultByInt()
+         in functions but not in codeblocks so it's tested in functions */
+      HBTEST TMultC1( 99999999 )                                 IS "9999999999999999"
+      HBTEST TMultC2( 18368730161825351 )                        IS "-18368730161825351"
+      HBTEST TMultC2( -9223372036854775807 )                     IS "9223372036854775807"
+      HBTEST TMultC3( 4611686018427387904 )                      IS "-9223372036854775808"
+      HBTEST TMultC3( 2.5 )                                      IS "-5.0"
+      HBTEST TMultC4( 4294967296 )                               IS .T.
+      /* compile time optimization of integer expressions near the limits */
+      HBTEST hb_ntos( 9223372036854775800 + 7 )                  IS "9223372036854775807"
+      HBTEST hb_ntos( 9223372036854775807 - 0 )                  IS "9223372036854775807"
+      HBTEST hb_ntos( 4611686018427387903 * 2 )                  IS "9223372036854775806"
+      HBTEST hb_ntos( -9223372036854775807 - 1 )                 IS "-9223372036854775808"
+      HBTEST hb_ntos( -4611686018427387904 * 2 )                 IS "-9223372036854775808"
+      HBTEST hb_ntos( &( "9223372036854775800 + 7" ) )           IS "9223372036854775807"
+      HBTEST 9223372036854775807 + 1 > 0                         IS .T.
+      HBTEST -9223372036854775807 - 2 < 0                        IS .T.
+      HBTEST -4611686018427387905 * 2 < 0                        IS .T.
+      HBTEST -9223372036854775000 - 1000 < 0                     IS .T.
+      HBTEST &( "-9223372036854775807 - 2" ) < 0                 IS .T.
+      /* overflow to 2^63 has to give positive floating point number */
+      HBTEST ( l := 4611686018427387904, l * 2 > 0 )            IS .T.
+      HBTEST ( l := -9223372036854775807 - 1, l * -1 > 0 )      IS .T.
+      HBTEST TMultC5( -9223372036854775807 - 1 )                 IS .T.
+      /* division and modulus of minimal integer value by -1 */
+      HBTEST ( -9223372036854775807 - 1 ) % -1                   IS 0
+      HBTEST ( -9223372036854775807 - 1 ) / -1 > 0               IS .T.
+      HBTEST &( "( -9223372036854775807 - 1 ) % -1" )            IS 0
+      HBTEST &( "( -9223372036854775807 - 1 ) / -1" ) > 0        IS .T.
+      HBTEST ( l := -9223372036854775807 - 1, l % -1 == 0 )      IS .T.
+      HBTEST TModV( -9223372036854775807 - 1, -1 )               IS .T.
+      HBTEST TModC( -9223372036854775807 - 1 )                   IS .T.
+      HBTEST TDivC( -9223372036854775807 - 1 )                   IS .T.
+      /* the same in preprocessor #if expressions */
+#if ( ( -9223372036854775807 - 1 ) % -1 ) == 0 .AND. ( 7 % -1 ) == 0 .AND. ( -7 % 3 ) == -1
+      HBTEST "PP %"                                              IS "PP %"
+#else
+      HBTEST "PP %"                                              IS "PP % failed"
+#endif
+#if ( ( -9223372036854775807 - 1 ) / -1 ) < 0 .AND. ( 7 / -1 ) == -7 .AND. ( -7 / -1 ) == 7
+      HBTEST "PP /"                                              IS "PP /"
+#else
+      HBTEST "PP /"                                              IS "PP / failed"
+#endif
+   ENDIF
+#endif
    HBTEST ( l := -7, l % -1 == 0 .AND. l % 3 == -1 .AND. l / -1 == 7 ) IS .T.
    HBTEST hb_ntos( 10 / -1 ) + hb_ntos( 10 % -1 )             IS "-100"
-   /* the same in preprocessor #if expressions */
-#if ( ( -9223372036854775807 - 1 ) % -1 ) == 0 && ( 7 % -1 ) == 0 && ( -7 % 3 ) == -1
-   HBTEST "PP %"                                              IS "PP %"
-#else
-   HBTEST "PP %"                                              IS "PP % failed"
-#endif
-#if ( ( -9223372036854775807 - 1 ) / -1 ) < 0 && ( 7 / -1 ) == -7 && ( -7 / -1 ) == 7
-   HBTEST "PP /"                                              IS "PP /"
-#else
-   HBTEST "PP /"                                              IS "PP / failed"
-#endif
    /* hb_bit*() with bit numbers out of range: runtime, compile time
       optimization and macro compiler have to give the same results */
    HBTEST TBitV( 1, 64 )                                      IS "0/0/.F./1/1"
-   HBTEST TBitV( 1, 63 )                                      IS "-9223372036854775808/0/.F./-9223372036854775807/1"
    HBTEST TBitV( 1, 200 )                                     IS "0/0/.F./1/1"
    HBTEST TBitV( -1, -64 )                                    IS "-1/0/.F./-1/-1"
    HBTEST TBitV( -8, -1 )                                     IS "-4/-16/.F./-8/-8"
    HBTEST TBitV( 8, -70 )                                     IS "0/0/.F./8/8"
-   HBTEST TBitV( -1, 63 )                                     IS "-9223372036854775808/-1/.T./-1/9223372036854775807"
+   IF hbtest_Int64()
+      HBTEST TBitV( 1, 63 )                                      IS "-9223372036854775808/0/.F./-9223372036854775807/1"
+      HBTEST TBitV( -1, 63 )                                     IS "-9223372036854775808/-1/.T./-1/9223372036854775807"
+   ENDIF
    HBTEST hb_bitShift( 1, 64 )                                IS 0
    HBTEST hb_bitShift( 1, 200 )                               IS 0
    HBTEST hb_bitShift( -1, -64 )                              IS -1
@@ -740,12 +746,16 @@ PROCEDURE Main_MATH()
    HBTEST &( "hb_bitShift( -8, -1 )" )                        IS -4
    HBTEST &( "hb_bitTest( 1, 64 )" )                          IS .F.
    /* integer random number generators (exact 64-bit integer arithmetic) */
-   HBTEST TRandGen( 20000 )                                   IS "21480720689328/43061804023439/42877660307756/42842606655438/10276660"
+   IF hbtest_Int64()
+      HBTEST TRandGen( 20000 )                                   IS "21480720689328/43061804023439/42877660307756/42842606655438/10276660"
+   ENDIF
 #endif
 
    RETURN
 
 #ifdef __HARBOUR__
+
+#ifdef __HB_INT64__
 
 STATIC FUNCTION TMultV( n1, n2 )
    RETURN hb_ntos( n1 * n2 )
@@ -774,6 +784,8 @@ STATIC FUNCTION TMultC5( n )
 STATIC FUNCTION TMultC4( n )
    /* the second multiplication overflows HB_MAXINT */
    RETURN n * 2147483647 * 4 > 9223372036854775807
+
+#endif /* __HB_INT64__ */
 
 /* hb_bitShift( n1, n2 ), hb_bitShift( n1, -n2 ), hb_bitTest( n1, n2 ),
    hb_bitSet( n1, n2 ), hb_bitReset( n1, n2 ) */

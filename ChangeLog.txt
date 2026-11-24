@@ -7,6 +7,27 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 12:16 UTC-0300 Alexandre Bencz
+  * src/pp/ppcore.c
+    + added __HB_INT64__ macro predefined when compiler supports 64-bit
+      integer numbers. Without them bigger integer constants are stored as
+      floating point numbers and they cannot be used in CASE of SWITCH
+      statement and in #if expressions, so the code which uses them has
+      to be guarded. It describes the compiler, it's not removed with
+      architecture macros in cross builds.
+
+  * utils/hbtest/hbtest.prg
+  * utils/hbtest/rt_hvma.prg
+  * utils/hbtest/rt_math.prg
+  * utils/hbtest/rt_trans.prg
+    + added hbtest_Int64() function which checks if HVM supports 64-bit
+      integer numbers
+    * tests which need 64-bit integer numbers are guarded by __HB_INT64__
+      macro and hbtest_Int64(), now all tests pass also in builds without
+      64-bit integer type
+    ! fixed #if expressions in tests of preprocessor, && is line comment
+      in Harbour so only the first condition was checked, .AND. is used
+
 2026-11-24 12:02 UTC-0300 Alexandre Bencz
   * src/common/expropt2.c
     ! fixed compile time optimization of Int() in compiler and macro

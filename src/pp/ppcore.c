@@ -5735,6 +5735,14 @@ void hb_pp_initDynDefines( PHB_PP_STATE pState, HB_BOOL fArchDefs )
    hb_pp_addDefine( pState, "__HARBOUR__", szResult );
 #endif
 
+   /* compiler and preprocessor support 64-bit integer numbers, without
+    * them bigger integer constants are stored as floating point numbers
+    * and cannot be used in #if expressions and CASE of SWITCH statement.
+    * It's not architecture define, it describes the compiler itself. */
+#if HB_VMLONG_MAX > 2147483647L
+   hb_pp_addDefine( pState, "__HB_INT64__", NULL );
+#endif
+
    /* __DATE__ */
    hb_dateToday( &iYear, &iMonth, &iDay );
    hb_dateStrPut( szResult + 1, iYear, iMonth, iDay );
