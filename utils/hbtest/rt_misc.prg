@@ -1068,6 +1068,11 @@ PROCEDURE Main_MISC()
    /* relations which would create cycle are not allowed */
    HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
 
+   /* hb_HDelAt() with position out of range */
+   HBTEST THDelAt( 5 )                       IS "BASE/1187/HB_HDELAT"
+   HBTEST THDelAt( 0 )                       IS "BASE/1187/HB_HDELAT"
+   HBTEST THDelAt( 1 )                       IS "1/b"
+
    /* RESTORE FROM which fails cannot release memory variables */
 #ifndef HB_CLP_STRICT
    HBTEST TRestoreMissing()                  IS "C/2005"
@@ -1079,6 +1084,19 @@ PROCEDURE Main_MISC()
    RETURN
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION THDelAt( nPos )
+
+   LOCAL hHash := { "a" => 1, "b" => 2 }, cResult, oError
+
+   BEGIN SEQUENCE WITH {| e | Break( e ) }
+      hb_HDelAt( hHash, nPos )
+      cResult := hb_ntos( Len( hHash ) ) + "/" + hb_HKeyAt( hHash, 1 )
+   RECOVER USING oError
+      cResult := oError:subSystem + "/" + hb_ntos( oError:subCode ) + "/" + oError:operation
+   END SEQUENCE
+
+   RETURN cResult
 
 STATIC FUNCTION TRestoreMissing()
 

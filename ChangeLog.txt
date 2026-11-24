@@ -7,6 +7,15 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 12:55 UTC-0300 Alexandre Bencz
+  * src/vm/hashfunc.c
+    ! hb_HDelAt() with position out of range generates BASE/1187 bound
+      error like hb_HKeyAt(), hb_HValueAt() and hb_HPairAt() instead of
+      BASE/1133 error with description of array assignment
+
+  * utils/hbtest/rt_misc.prg
+    + added tests for hb_HDelAt()
+
 2026-11-24 12:50 UTC-0300 Alexandre Bencz
   * src/vm/memvars.c
     ! RESTORE FROM (__MRestore()) without ADDITIVE clears memory variables

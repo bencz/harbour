@@ -303,7 +303,7 @@ HB_FUNC( HB_HDELAT )
       if( hb_hashDelAt( pHash, hb_itemGetNS( pPos ) ) )
          hb_itemReturn( pHash );
       else
-         hb_errRT_BASE( EG_BOUND, 1133, NULL, hb_langDGetErrorDesc( EG_ARRASSIGN ), 2, pHash, pPos );
+         hb_errRT_BASE( EG_BOUND, 1187, NULL, HB_ERR_FUNCNAME, HB_ERR_ARGS_BASEPARAMS );
    }
    else
       hb_errRT_BASE( EG_ARG, 1123, NULL, HB_ERR_FUNCNAME, HB_ERR_ARGS_BASEPARAMS );
