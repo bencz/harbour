@@ -7,6 +7,24 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 11:21 UTC-0300 Alexandre Bencz
+  * include/hbexprb.c
+  * src/rtl/hbbit.c
+    ! fixed hb_bitShift(), hb_bitTest(), hb_bitSet() and hb_bitReset() and
+      their compile time optimization used with bit numbers out of range
+      0 .. 63. Such shifts are undefined in C and on x86 the number of bits
+      was masked, e.g. hb_bitShift( 1, 64 ) returned 1, hb_bitShift( 8, 70 )
+      returned 512 and hb_bitTest( 1, 64 ) returned .T., also left shift
+      of signed values could overflow.
+      Now hb_bitShift() returns 0 when the value is shifted left or right
+      by bigger number of bits (or -1 for negative values shifted right),
+      right shift is arithmetic and left shift is done on unsigned values,
+      hb_bitTest() returns .F. and hb_bitSet() and hb_bitReset() return
+      unchanged value for bit numbers out of range.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for hb_bit*() functions with bit numbers out of range
+
 2026-11-24 11:17 UTC-0300 Alexandre Bencz
   * include/hbthread.h
   * src/vm/hvm.c

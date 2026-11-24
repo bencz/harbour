@@ -53,6 +53,11 @@
 #define HB_USE_ARRAYAT_REF
 #define HB_USE_OBJMSG_REF
 
+/* number of bits and bit mask used in compile time optimization of
+ * hb_bit*() functions */
+#define HB_EXPR_BITWIDTH      ( ( HB_MAXINT ) ( sizeof( HB_MAXINT ) * 8 ) )
+#define HB_EXPR_BITMASK( n )  ( ( HB_MAXINT ) ( ( HB_MAXUINT ) 1 << ( n ) ) )
+
 
 /* Forward declarations
  */
@@ -1874,23 +1879,35 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                               lResult ^= hb_compExprAsLongNum( pArg );
                            }
                         }
+                        /* the same logic as in src/rtl/hbbit.c: bit numbers
+                         * out of range 0 .. HB_EXPR_BITWIDTH - 1 and signed
+                         * overflow in left shift are undefined behavior in C
+                         */
                         else if( funcID == HB_F_BITSET )
                         {
                            HB_MAXINT lBit = hb_compExprAsLongNum( pArg->pNext );
-                           lResult |= ( HB_MAXINT ) 1 << lBit;
+                           if( lBit >= 0 && lBit < HB_EXPR_BITWIDTH )
+                              lResult |= HB_EXPR_BITMASK( lBit );
                         }
                         else if( funcID == HB_F_BITRESET )
                         {
                            HB_MAXINT lBit = hb_compExprAsLongNum( pArg->pNext );
-                           lResult &= ~( ( HB_MAXINT ) 1 << lBit );
+                           if( lBit >= 0 && lBit < HB_EXPR_BITWIDTH )
+                              lResult &= ~HB_EXPR_BITMASK( lBit );
                         }
                         else /* if( funcID == HB_F_BITSHIFT ) */
                         {
                            HB_MAXINT lBits = hb_compExprAsLongNum( pArg->pNext );
-                           if( lBits < 0 )
-                              lResult >>= -lBits;
+                           if( lBits >= HB_EXPR_BITWIDTH )
+                              lResult = 0;
+                           else if( lBits >= 0 )
+                              lResult = ( HB_MAXINT ) ( ( HB_MAXUINT ) lResult << lBits );
+                           else if( lBits <= -HB_EXPR_BITWIDTH )
+                              lResult = lResult < 0 ? -1 : 0;
+                           else if( lResult < 0 )
+                              lResult = ~( ~lResult >> -lBits );
                            else
-                              lResult <<= lBits;
+                              lResult >>= -lBits;
                         }
                         if( fOptimize )
                            hb_compExprReduceBitFunc( pSelf, lResult, HB_FALSE, HB_COMP_PARAM );
@@ -1903,8 +1920,9 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                      {
                         PHB_EXPR pArg = pParms->value.asList.pExprList;
                         HB_MAXINT lBit = hb_compExprAsLongNum( pArg->pNext );
-                        HB_MAXINT lResult = ( hb_compExprAsLongNum( pArg ) &
-                                              ( ( HB_MAXINT ) 1 << lBit ) ) != 0;
+                        HB_MAXINT lResult = lBit >= 0 && lBit < HB_EXPR_BITWIDTH &&
+                                            ( hb_compExprAsLongNum( pArg ) &
+                                              HB_EXPR_BITMASK( lBit ) ) != 0;
                         hb_compExprReduceBitFunc( pSelf, lResult, HB_TRUE, HB_COMP_PARAM );
                      }
                      break;

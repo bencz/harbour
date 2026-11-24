@@ -54,6 +54,29 @@
          to update the references in the compiler as well.
          [vszakats] */
 
+/* bit number has to be in range 0 .. HB_BITWIDTH - 1, shifting by bigger
+ * or negative number of bits is undefined behavior in C, signed integer
+ * overflow in left shift too so it's done on unsigned values.
+ * NOTE: the same logic is used in compile time optimization of hb_bit*()
+ *       functions in include/hbexprb.c
+ */
+#define HB_BITWIDTH     ( ( HB_MAXINT ) ( sizeof( HB_MAXINT ) * 8 ) )
+#define HB_BITMASK( n ) ( ( HB_MAXINT ) ( ( HB_MAXUINT ) 1 << ( n ) ) )
+
+static HB_MAXINT hb_bitShiftNum( HB_MAXINT lValue, HB_MAXINT lBits )
+{
+   if( lBits >= HB_BITWIDTH )
+      return 0;
+   else if( lBits >= 0 )
+      return ( HB_MAXINT ) ( ( HB_MAXUINT ) lValue << lBits );
+   else if( lBits <= -HB_BITWIDTH )
+      return lValue < 0 ? -1 : 0;
+   else if( lValue < 0 )
+      return ~( ~lValue >> -lBits );
+   else
+      return lValue >> -lBits;
+}
+
 static HB_BOOL hb_numParam( int iParam, HB_MAXINT * plNum )
 {
    if( HB_ISNUM( iParam ) )
@@ -136,7 +159,8 @@ HB_FUNC( HB_BITTEST )
    HB_MAXINT lValue, lBit;
 
    if( hb_numParam( 1, &lValue ) && hb_numParam( 2, &lBit ) )
-      hb_retl( ( lValue & ( ( HB_MAXINT ) 1 << lBit ) ) != 0 );
+      hb_retl( lBit >= 0 && lBit < HB_BITWIDTH &&
+               ( lValue & HB_BITMASK( lBit ) ) != 0 );
 }
 
 HB_FUNC( HB_BITSET )
@@ -144,7 +168,8 @@ HB_FUNC( HB_BITSET )
    HB_MAXINT lValue, lBit;
 
    if( hb_numParam( 1, &lValue ) && hb_numParam( 2, &lBit ) )
-      hb_retnint( lValue | ( ( HB_MAXINT ) 1 << lBit ) );
+      hb_retnint( lBit >= 0 && lBit < HB_BITWIDTH ?
+                  lValue | HB_BITMASK( lBit ) : lValue );
 }
 
 HB_FUNC( HB_BITRESET )
@@ -152,7 +177,8 @@ HB_FUNC( HB_BITRESET )
    HB_MAXINT lValue, lBit;
 
    if( hb_numParam( 1, &lValue ) && hb_numParam( 2, &lBit ) )
-      hb_retnint( lValue & ( ~( ( HB_MAXINT ) 1 << lBit ) ) );
+      hb_retnint( lBit >= 0 && lBit < HB_BITWIDTH ?
+                  lValue & ~HB_BITMASK( lBit ) : lValue );
 }
 
 HB_FUNC( HB_BITSHIFT )
@@ -160,10 +186,5 @@ HB_FUNC( HB_BITSHIFT )
    HB_MAXINT lValue, lBits;
 
    if( hb_numParam( 1, &lValue ) && hb_numParam( 2, &lBits ) )
-   {
-      if( lBits < 0 )
-         hb_retnint( lValue >> -lBits );
-      else
-         hb_retnint( lValue << lBits );
-   }
+      hb_retnint( hb_bitShiftNum( lValue, lBits ) );
 }

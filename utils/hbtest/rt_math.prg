@@ -713,6 +713,26 @@ PROCEDURE Main_MATH()
 #else
    HBTEST "PP /"                                              IS "PP / failed"
 #endif
+   /* hb_bit*() with bit numbers out of range: runtime, compile time
+      optimization and macro compiler have to give the same results */
+   HBTEST TBitV( 1, 64 )                                      IS "0/0/.F./1/1"
+   HBTEST TBitV( 1, 63 )                                      IS "-9223372036854775808/0/.F./-9223372036854775807/1"
+   HBTEST TBitV( 1, 200 )                                     IS "0/0/.F./1/1"
+   HBTEST TBitV( -1, -64 )                                    IS "-1/0/.F./-1/-1"
+   HBTEST TBitV( -8, -1 )                                     IS "-4/-16/.F./-8/-8"
+   HBTEST TBitV( 8, -70 )                                     IS "0/0/.F./8/8"
+   HBTEST TBitV( -1, 63 )                                     IS "-9223372036854775808/-1/.T./-1/9223372036854775807"
+   HBTEST hb_bitShift( 1, 64 )                                IS 0
+   HBTEST hb_bitShift( 1, 200 )                               IS 0
+   HBTEST hb_bitShift( -1, -64 )                              IS -1
+   HBTEST hb_bitShift( -8, -1 )                               IS -4
+   HBTEST hb_bitTest( 1, 64 )                                 IS .F.
+   HBTEST hb_bitTest( -1, -1 )                                IS .F.
+   HBTEST hb_bitSet( 0, 64 )                                  IS 0
+   HBTEST hb_bitReset( -1, 64 )                               IS -1
+   HBTEST &( "hb_bitShift( 1, 64 )" )                         IS 0
+   HBTEST &( "hb_bitShift( -8, -1 )" )                        IS -4
+   HBTEST &( "hb_bitTest( 1, 64 )" )                          IS .F.
    /* integer random number generators (exact 64-bit integer arithmetic) */
    HBTEST TRandGen( 20000 )                                   IS "21480720689328/43061804023439/42877660307756/42842606655438/10276660"
 #endif
@@ -748,6 +768,13 @@ STATIC FUNCTION TMultC5( n )
 STATIC FUNCTION TMultC4( n )
    /* the second multiplication overflows HB_MAXINT */
    RETURN n * 2147483647 * 4 > 9223372036854775807
+
+/* hb_bitShift( n1, n2 ), hb_bitShift( n1, -n2 ), hb_bitTest( n1, n2 ),
+   hb_bitSet( n1, n2 ), hb_bitReset( n1, n2 ) */
+STATIC FUNCTION TBitV( n1, n2 )
+   RETURN hb_ntos( hb_bitShift( n1, n2 ) ) + "/" + hb_ntos( hb_bitShift( n1, -n2 ) ) + "/" + ;
+          hb_ValToStr( hb_bitTest( n1, n2 ) ) + "/" + hb_ntos( hb_bitSet( n1, n2 ) ) + "/" + ;
+          hb_ntos( hb_bitReset( n1, n2 ) )
 
 /* 31-bit linear congruential generator, 64-bit and 32-bit xorshift and
    multiply-with-carry generators, their sums and histogram checksum */
