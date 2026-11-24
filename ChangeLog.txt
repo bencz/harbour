@@ -7,6 +7,22 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 14:57 UTC-0300 Alexandre Bencz
+  * include/hbexprb.c
+    ! fixed compile time replacement of hb_i18n_ngettext_noop() and
+      hb_i18n_ngettext_noop_*() with string or one element array. The
+      count parameter was removed even if it had side effects, e.g. n++
+      was not executed in hb_i18n_ngettext_noop( n++, "text" ). Now such
+      count is evaluated before the result: ( n++, "text" )
+
+  * doc/cmpopt.txt
+    * updated compile time optimizations of hb_bit*() and CToD()
+      functions, they are not optimized when additional parameters are
+      passed
+
+  * utils/hbtest/rt_math.prg
+    + added test for count parameter of hb_i18n_ngettext_noop()
+
 2026-11-24 14:31 UTC-0300 Alexandre Bencz
   * src/common/expropt2.c
     ! fixed compile time optimization of comparison with NIL used by

@@ -24,19 +24,19 @@ optimized at compile time:
       Max( <xConst1>, <xConst2> )   // <xConstN> is N, D or L value
       Empty( <aConst> | <hConst> | <cConst> | <bConst> |
              <nConst> | <dConst>| <lConst> | NIL )
-      CToD( "" [ , ... ] )
+      CToD( "" )
       DToS( <dConst> ] )
       SToD( [ <cConst> ] )
       hb_SToD( [ <cConst> ] )
       hb_SToT( [ <cConst> ] )
-      hb_bitNot( <nConst> [, ... ] )
+      hb_bitNot( <nConst> )
       hb_bitAnd( <nConst1>, <nConst2> [, <nConstN> ] )
       hb_bitOr( <nConst1>, <nConst2> [, <nConstN> ] )
       hb_bitXor( <nConst1>, <nConst2> [, <nConstN> ] )
-      hb_bitTest( <nConst1>, <nConst2> [, ... ] )
-      hb_bitSet( <nConst1>, <nConst2> [, ... ] )
-      hb_bitReset( <nConst1>, <nConst2> [, ... ] )
-      hb_bitShift( <nConst1>, <nConst2> [, ... ] )
+      hb_bitTest( <nConst1>, <nConst2> )
+      hb_bitSet( <nConst1>, <nConst2> )
+      hb_bitReset( <nConst1>, <nConst2> )
+      hb_bitShift( <nConst1>, <nConst2> )
 
    - Harbour special functions:
 

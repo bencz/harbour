@@ -696,6 +696,9 @@ PROCEDURE Main_MATH()
    HBTEST TNilCmp()                       IS ".F./1/.T./2/.F./3/.T./3/.F./3"
    HBTEST NIL == { .T. => 1 }             IS "E 2 BASE 1133 Bound error (array assign) OS:0 #:0 A:3:H:;L:.T.;N:1 "
 
+   /* count parameter of hb_i18n_ngettext_noop() is evaluated */
+   HBTEST TI18nNoop()                     IS "x/1/y/2/b/3/a/3"
+
 #endif
 
 #ifdef __HARBOUR__
@@ -883,6 +886,17 @@ STATIC FUNCTION TArrLitIdx()
    cResult += hb_ntos( { 1, 2, n++ }[ 2 ] ) + "/" + hb_ntos( n ) + "/"
    cResult += hb_ntos( { 1, 2, 3 }[ 3 ] ) + "/" + { "x", { 1 }, {|| 2 } }[ 1 ] + "/"
    cResult += hb_ntos( &( "{ p_nIdx++, 5 }[ 2 ]" ) ) + "/" + hb_ntos( p_nIdx )
+
+   RETURN cResult
+
+STATIC FUNCTION TI18nNoop()
+
+   LOCAL n := 0, cResult
+
+   cResult := hb_i18n_ngettext_noop( n++, "x" ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_i18n_ngettext_noop( n++, { "y" } ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_i18n_ngettext_noop( n++, { "a", "b" } ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_i18n_ngettext_noop( 1, { "a", "b" } ) + "/" + hb_ntos( n )
 
    RETURN cResult
 

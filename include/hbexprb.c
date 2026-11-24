@@ -2090,14 +2090,16 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                         HB_COMP_EXPR_FREE( pSelf->value.asFunCall.pFunName );
                         if( pCount )
                         {
+                           /* detach count from the list of parameters */
+                           pCount->pNext = NULL;
                            if( pArg->ExprType == HB_ET_ARRAY )
                            {
                               if( hb_compExprListLen( pArg ) == 1 )
                               {
-                                 HB_COMP_EXPR_FREE( pCount );
-                                 pCount = pArg;
-                                 pArg = pArg->value.asList.pExprList;
-                                 pCount->value.asList.pExprList = NULL;
+                                 PHB_EXPR pArray = pArg;
+                                 pArg = pArray->value.asList.pExprList;
+                                 pArray->value.asList.pExprList = NULL;
+                                 HB_COMP_EXPR_FREE( pArray );
                               }
                               else
                               {
@@ -2123,7 +2125,14 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                               }
                            }
                            if( pCount )
-                              HB_COMP_EXPR_FREE( pCount );
+                           {
+                              /* count expression can have side effects,
+                                 e.g. n++, then create: ( pCount, pArg ) */
+                              if( hb_compExprIsConst( pCount ) )
+                                 HB_COMP_EXPR_FREE( pCount );
+                              else
+                                 pArg = hb_compExprAddListExpr( hb_compExprNewList( pCount, HB_COMP_PARAM ), pArg );
+                           }
                         }
                         memcpy( pSelf, pArg, sizeof( HB_EXPR ) );
                         /* free pArg expression body but without freeing its subexpressions */
