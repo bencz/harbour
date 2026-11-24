@@ -1076,6 +1076,11 @@ PROCEDURE Main_MISC()
    /* relations which would create cycle are not allowed */
    HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
 
+   /* SET DECIMALS cannot exceed the range of decimal places in items */
+   HBTEST TSetDec( 70000 )                   IS "2020/2"
+   HBTEST TSetDec( -1 )                      IS "2020/2"
+   HBTEST TSetDec( 65535 )                   IS "OK/65535"
+
    /* hb_HDelAt() with position out of range */
    HBTEST THDelAt( 5 )                       IS "BASE/1187/HB_HDELAT"
    HBTEST THDelAt( 0 )                       IS "BASE/1187/HB_HDELAT"
@@ -1092,6 +1097,19 @@ PROCEDURE Main_MISC()
    RETURN
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION TSetDec( nDec )
+
+   LOCAL nOld := Set( _SET_DECIMALS, 2 ), cResult := "OK", oError
+
+   BEGIN SEQUENCE WITH {| e | Break( e ) }
+      Set( _SET_DECIMALS, nDec )
+   RECOVER USING oError
+      cResult := hb_ntos( oError:subCode )
+   END SEQUENCE
+   cResult += "/" + hb_ntos( Set( _SET_DECIMALS, nOld ) )
+
+   RETURN cResult
 
 STATIC FUNCTION THDelAt( nPos )
 

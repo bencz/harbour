@@ -7,6 +7,16 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:03 UTC-0300 Alexandre Bencz
+  * src/vm/set.c
+    ! fixed SET DECIMALS with values greater than 65535. The number of
+      decimal places is stored in numeric items as 16-bit value so such
+      values wrapped around, e.g. 65537 gave 1 decimal place. Now they
+      generate BASE/2020 error like negative values.
+
+  * utils/hbtest/rt_misc.prg
+    + added tests for SET DECIMALS out of range
+
 2026-11-24 12:59 UTC-0300 Alexandre Bencz
   * doc/en/memo.txt
   * doc/en/string.txt

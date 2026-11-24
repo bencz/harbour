@@ -633,10 +633,14 @@ PHB_ITEM hb_setGetItem( HB_set_enum set_specifier, PHB_ITEM pResult,
          pResult = hb_itemPutNI( pResult, pSet->HB_SET_DECIMALS );
          if( pArg1 != NULL )
          {
-            if( set_number( pArg1, pSet->HB_SET_DECIMALS ) < 0 )
+            /* number of decimal places is stored in numeric items as
+               HB_USHORT so bigger values cannot be used */
+            int iValue = set_number( pArg1, pSet->HB_SET_DECIMALS );
+
+            if( iValue < 0 || iValue > USHRT_MAX )
                hb_errRT_BASE( EG_ARG, 2020, NULL, HB_ERR_FUNCNAME, HB_ERR_ARGS_BASEPARAMS );
             else
-               pSet->HB_SET_DECIMALS = set_number( pArg1, pSet->HB_SET_DECIMALS );
+               pSet->HB_SET_DECIMALS = iValue;
          }
          break;
       case HB_SET_DEFAULT:
@@ -1584,7 +1588,7 @@ HB_BOOL hb_setSetItem( HB_set_enum set_specifier, PHB_ITEM pItem )
             if( HB_IS_NUMERIC( pItem ) )
             {
                iValue = hb_itemGetNI( pItem );
-               if( iValue >= 0 )
+               if( iValue >= 0 && iValue <= USHRT_MAX )
                {
                   pSet->HB_SET_DECIMALS = iValue;
                   fResult = HB_TRUE;
