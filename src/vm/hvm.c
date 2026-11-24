@@ -9371,6 +9371,14 @@ void hb_vmSetI18N( void * pI18N )
    hb_stackSetI18N( pI18N );
 }
 
+/* check if execution of current procedure has been interrupted, e.g. by
+ * BREAK executed by object operator method, so the result of operation
+ * cannot be used
+ */
+#define HB_XVM_ACTIONREQUESTED() \
+   ( ( hb_stackGetActionRequest() & \
+       ( HB_ENDPROC_REQUESTED | HB_BREAK_REQUESTED | HB_QUIT_REQUESTED ) ) != 0 )
+
 #if defined( HB_MT_VM )
 #  define HB_XVM_RETURN \
    { \
@@ -10502,6 +10510,8 @@ HB_BOOL hb_xvmEqualIntIs( HB_LONG lValue, HB_BOOL * pfValue )
       hb_objOperatorCall( HB_OO_OP_EQUAL, pItem, pItem,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
+      if( HB_XVM_ACTIONREQUESTED() )
+         return HB_TRUE;
       return hb_xvmPopLogical( pfValue );
    }
    else
@@ -10671,6 +10681,8 @@ HB_BOOL hb_xvmNotEqualIntIs( HB_LONG lValue, HB_BOOL * pfValue )
       hb_objOperatorCall( HB_OO_OP_NOTEQUAL, pItem, pItem,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
+      if( HB_XVM_ACTIONREQUESTED() )
+         return HB_TRUE;
       return hb_xvmPopLogical( pfValue );
    }
    else
@@ -10790,6 +10802,8 @@ HB_BOOL hb_xvmLessThenIntIs( HB_LONG lValue, HB_BOOL * pfValue )
       hb_objOperatorCall( HB_OO_OP_LESS, pItem, pItem,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
+      if( HB_XVM_ACTIONREQUESTED() )
+         return HB_TRUE;
       return hb_xvmPopLogical( pfValue );
    }
    else
@@ -10909,6 +10923,8 @@ HB_BOOL hb_xvmLessEqualThenIntIs( HB_LONG lValue, HB_BOOL * pfValue )
       hb_objOperatorCall( HB_OO_OP_LESSEQUAL, pItem, pItem,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
+      if( HB_XVM_ACTIONREQUESTED() )
+         return HB_TRUE;
       return hb_xvmPopLogical( pfValue );
    }
    else
@@ -11028,6 +11044,8 @@ HB_BOOL hb_xvmGreaterThenIntIs( HB_LONG lValue, HB_BOOL * pfValue )
       hb_objOperatorCall( HB_OO_OP_GREATER, pItem, pItem,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
+      if( HB_XVM_ACTIONREQUESTED() )
+         return HB_TRUE;
       return hb_xvmPopLogical( pfValue );
    }
    else
@@ -11147,6 +11165,8 @@ HB_BOOL hb_xvmGreaterEqualThenIntIs( HB_LONG lValue, HB_BOOL * pfValue )
       hb_objOperatorCall( HB_OO_OP_GREATEREQUAL, pItem, pItem,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
+      if( HB_XVM_ACTIONREQUESTED() )
+         return HB_TRUE;
       return hb_xvmPopLogical( pfValue );
    }
    else

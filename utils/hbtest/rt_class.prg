@@ -1095,6 +1095,13 @@ PROCEDURE Main_CLASS()
    HBTEST TOperExactEq( 5 )                                 IS .T.
    HBTEST TOperExactEq( NIL )                               IS .F.
 
+   /* BREAK in -gc3 code has to stop execution like in pcode */
+   HBTEST TBrkNotEqIf( OPERCLASS3():new() )                 IS "1081/1"
+   HBTEST TBrkLessIf( OPERCLASS3():new() )                  IS "1081/1"
+   HBTEST TBrkLocalAdd( 7 )                                 IS "1081/1/0"
+   HBTEST TBrkStaticAdd( 7 )                                IS "1081/1/0"
+   HBTEST TBrkMemvarAdd( 7 )                                IS "1081/1/0"
+
 #endif
 
    RETURN
@@ -1123,6 +1130,63 @@ EXPORTED:
    OPERATOR "+"  ARG x INLINE "+("  + hb_ntos( x ) + ")"
    OPERATOR "==" ARG x INLINE "==(" + hb_ntos( x ) + ")"
    OPERATOR "="  ARG x INLINE "=("  + hb_ntos( x ) + ")"
+ENDCLASS
+
+STATIC FUNCTION TBrkNotEqIf( x )
+   LOCAL nErr := 0, r
+   BEGIN SEQUENCE WITH {| e | ++nErr, Break( e ) }
+      r := iif( x != 5, "Y", "N" )
+   RECOVER USING r
+      r := hb_ntos( r:subCode )
+   END SEQUENCE
+   RETURN r + "/" + hb_ntos( nErr )
+
+STATIC FUNCTION TBrkLessIf( x )
+   LOCAL nErr := 0, r
+   BEGIN SEQUENCE WITH {| e | ++nErr, Break( e ) }
+      r := iif( x < 5, "Y", "N" )
+   RECOVER USING r
+      r := hb_ntos( r:subCode )
+   END SEQUENCE
+   RETURN r + "/" + hb_ntos( nErr )
+
+STATIC FUNCTION TBrkLocalAdd( x )
+   LOCAL nErr := 0, nAfter := 0, r
+   BEGIN SEQUENCE WITH {| e | ++nErr, Break( e ) }
+      r := "s" + x
+      nAfter := 1
+   RECOVER USING r
+      r := hb_ntos( r:subCode )
+   END SEQUENCE
+   RETURN r + "/" + hb_ntos( nErr ) + "/" + hb_ntos( nAfter )
+
+STATIC FUNCTION TBrkStaticAdd( x )
+   STATIC s_r
+   LOCAL nErr := 0, nAfter := 0, r
+   BEGIN SEQUENCE WITH {| e | ++nErr, Break( e ) }
+      s_r := "s" + x
+      nAfter := 1
+   RECOVER USING r
+      r := hb_ntos( r:subCode )
+   END SEQUENCE
+   RETURN r + "/" + hb_ntos( nErr ) + "/" + hb_ntos( nAfter )
+
+STATIC FUNCTION TBrkMemvarAdd( x )
+   LOCAL nErr := 0, nAfter := 0, r
+   MEMVAR m_r
+   PRIVATE m_r
+   BEGIN SEQUENCE WITH {| e | ++nErr, Break( e ) }
+      m_r := "s" + x
+      nAfter := 1
+   RECOVER USING r
+      r := hb_ntos( r:subCode )
+   END SEQUENCE
+   RETURN r + "/" + hb_ntos( nErr ) + "/" + hb_ntos( nAfter )
+
+CREATE CLASS OPERCLASS3
+EXPORTED:
+   OPERATOR "!=" ARG x INLINE x + "A"
+   OPERATOR "<"  ARG x INLINE x + "A"
 ENDCLASS
 
 CREATE CLASS OPERCLASS2

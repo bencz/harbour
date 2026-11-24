@@ -7,6 +7,25 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-23 21:19 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    ! fixed BREAK in overloaded object operator executed by -gc3 code for
+      comparison with integer constant used in conditional jump, e.g.
+      IF o != 5 or iif( o < 5, ... ). Operator result was used even if
+      BREAK was requested so error 1066 (conditional) was generated and
+      error handler was executed second time. Fixed in hb_xvm*IntIs()
+      functions for =, !=, <, <=, >, >= operators.
+    + added HB_XVM_ACTIONREQUESTED() macro
+
+  * src/compiler/gencc.c
+    ! fixed -gc3 code generated for assignment of sum to local, static or
+      memvar variable, e.g. r := "s" + x. Results of hb_xvmLocalAdd(),
+      hb_xvmStaticAdd() and hb_xvmMemvarAdd() were ignored so after BREAK
+      requested by error handler following statements were executed.
+
+  * utils/hbtest/rt_class.prg
+    + added tests for BREAK in -gc3 code
+
 2026-11-23 21:13 UTC-0300 Alexandre Bencz
   * include/hbxvm.h
   * src/harbour.def

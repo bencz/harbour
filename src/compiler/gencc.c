@@ -299,22 +299,22 @@ static int hb_gencc_checkPlusAhead( PHB_HFUNC pFunc, HB_SIZE nPCodePos, PHB_LABE
       switch( pFunc->pCode[ nPCodePos ] )
       {
          case HB_P_POPLOCALNEAR:
-            fprintf( cargo->yyc, "\thb_xvmLocalAdd( %d );\n",
+            fprintf( cargo->yyc, "\tif( hb_xvmLocalAdd( %d ) ) break;\n",
                      ( signed char ) pFunc->pCode[ nPCodePos + 1 ] );
             return 2;
 
          case HB_P_POPLOCAL:
-            fprintf( cargo->yyc, "\thb_xvmLocalAdd( %d );\n",
+            fprintf( cargo->yyc, "\tif( hb_xvmLocalAdd( %d ) ) break;\n",
                      HB_PCODE_MKSHORT( &pFunc->pCode[ nPCodePos + 1 ] ) );
             return 3;
 
          case HB_P_POPSTATIC:
-            fprintf( cargo->yyc, "\thb_xvmStaticAdd( %hu );\n",
+            fprintf( cargo->yyc, "\tif( hb_xvmStaticAdd( %hu ) ) break;\n",
                      HB_PCODE_MKUSHORT( &pFunc->pCode[ nPCodePos + 1 ] ) );
             return 3;
 
          case HB_P_POPMEMVAR:
-            fprintf( cargo->yyc, "\thb_xvmMemvarAdd( symbols + %hu );\n",
+            fprintf( cargo->yyc, "\tif( hb_xvmMemvarAdd( symbols + %hu ) ) break;\n",
                      HB_PCODE_MKUSHORT( &pFunc->pCode[ nPCodePos + 1 ] ) );
             return 3;
       }
