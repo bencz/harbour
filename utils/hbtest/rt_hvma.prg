@@ -655,6 +655,7 @@ PROCEDURE Main_HVMA()
    HBTEST RTSTR( TIntConstRet2() )                IS " 10          5"
    HBTEST RTSTR( TIntConstRet3() )                IS " 11  5000000000"
    HBTEST TIntConstEdge()                         IS " 20          -2147483648| 20          -2147483648| 20          -1000000000| 11  9999999999| 12  10000000000"
+   HBTEST TIntConstMin()                          IS "-9223372036854775808|-9223372036854775808|T|-9223372036854775807|-2147483648|T"
 #endif
 
    RETURN
@@ -681,6 +682,14 @@ STATIC FUNCTION TIntConstEdge()
    n := -2147483648
    RETURN RTSTR( -2147483648 ) + "|" + RTSTR( n ) + "|" + ;
           RTSTR( -1000000000 ) + "|" + RTSTR( 9999999999 ) + "|" + RTSTR( 10000000000 )
+
+STATIC FUNCTION TIntConstMin()
+   LOCAL n, i
+   n := -9223372036854775807 - 1
+   i := -2147483648
+   RETURN hb_ntos( n ) + "|" + hb_ntos( -9223372036854775807 - 1 ) + "|" + ;
+          iif( n == -9223372036854775807 - 1, "T", "F" ) + "|" + hb_ntos( n + 1 ) + "|" + ;
+          hb_ntos( i ) + "|" + iif( i == -2147483648, "T", "F" )
 
 STATIC FUNCTION TIntConstRet1()
    RETURN 1234567890

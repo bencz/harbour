@@ -145,6 +145,36 @@ static void hb_gencc_copyLocals( FILE * yyc, int iLocal1, int iLocal2 )
       fprintf( yyc, "\thb_xvmCopyLocals( %d, %d );\n", iLocal1, iLocal2 );
 }
 
+/* Generate integer constant which is used in expressions or passed
+ * as parameter to hb_xvm*() functions. With C90 rules or without LL
+ * suffix support (e.g. MSVC) negative decimal constants may be unsigned
+ * and change their value after conversion to signed type, e.g.
+ * -2147483648L when long is 32-bit. Such constants are generated as
+ * expressions and constants which do not fit in 32-bit long are generated
+ * as positive HB_LL() constants cast to HB_MAXINT before negation.
+ */
+static void hb_gencc_intConst( FILE * yyc, HB_MAXINT nValue )
+{
+   if( nValue >= -2147483647L && nValue <= 2147483647L )
+      fprintf( yyc, "%ldL", ( long ) nValue );
+   else if( nValue == -2147483647L - 1 )
+      fprintf( yyc, "( -2147483647L - 1 )" );
+   else
+   {
+      char szBuf[ 24 ];
+
+      if( nValue >= 0 )
+         fprintf( yyc, "( ( HB_MAXINT ) HB_LL( %s ) )",
+                  hb_numToStr( szBuf, sizeof( szBuf ), nValue ) );
+      else if( nValue >= -HB_VMLONG_MAX )
+         fprintf( yyc, "( -( HB_MAXINT ) HB_LL( %s ) )",
+                  hb_numToStr( szBuf, sizeof( szBuf ), -nValue ) );
+      else  /* minimal HB_MAXINT value cannot be negated */
+         fprintf( yyc, "( -( HB_MAXINT ) HB_LL( %s ) - 1 )",
+                  hb_numToStr( szBuf, sizeof( szBuf ), HB_VMLONG_MAX ) );
+   }
+}
+
 static int hb_gencc_checkJumpCondAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE nPCodePos, PHB_LABEL_INFO cargo,
                                         const char * szFunc )
 {
@@ -192,15 +222,17 @@ static int hb_gencc_checkJumpCondAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE
 
       if( iSize )
       {
-         fprintf( cargo->yyc, "\tif( hb_xvm%sIntIs( %ldL, &fValue ) ) break;\n",
-                  szFunc, lValue );
+         fprintf( cargo->yyc, "\tif( hb_xvm%sIntIs( ", szFunc );
+         hb_gencc_intConst( cargo->yyc, lValue );
+         fprintf( cargo->yyc, ", &fValue ) ) break;\n" );
          fprintf( cargo->yyc, "\tif( %sfValue )\n\t\tgoto lab%05" HB_PFS "u;\n",
                   fNot ? "!" : "", HB_GENC_GETLABEL( nPCodePos + 1 + nOffset ) );
          return iSize;
       }
    }
-   fprintf( cargo->yyc, "\tif( hb_xvm%sInt( %ldL ) ) break;\n",
-            szFunc, lValue );
+   fprintf( cargo->yyc, "\tif( hb_xvm%sInt( ", szFunc );
+   hb_gencc_intConst( cargo->yyc, lValue );
+   fprintf( cargo->yyc, " ) ) break;\n" );
    return 1;
 }
 
@@ -211,14 +243,17 @@ static int hb_gencc_checkNumAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE nPCo
       switch( pFunc->pCode[ nPCodePos ] )
       {
          case HB_P_POPLOCAL:
-            fprintf( cargo->yyc, "\thb_xvmLocalSetInt( %d, %ldL );\n",
-                     HB_PCODE_MKSHORT( &pFunc->pCode[ nPCodePos + 1 ] ),
-                     lValue );
+            fprintf( cargo->yyc, "\thb_xvmLocalSetInt( %d, ",
+                     HB_PCODE_MKSHORT( &pFunc->pCode[ nPCodePos + 1 ] ) );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " );\n" );
             return 3;
 
          case HB_P_POPLOCALNEAR:
-            fprintf( cargo->yyc, "\thb_xvmLocalSetInt( %d, %ldL );\n",
-                     ( signed char ) pFunc->pCode[ nPCodePos + 1 ], lValue );
+            fprintf( cargo->yyc, "\thb_xvmLocalSetInt( %d, ",
+                     ( signed char ) pFunc->pCode[ nPCodePos + 1 ] );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " );\n" );
             return 2;
 
          case HB_P_EQUAL:
@@ -259,15 +294,21 @@ static int hb_gencc_checkNumAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE nPCo
             break;
 
          case HB_P_MULT:
-            fprintf( cargo->yyc, "\tif( hb_xvmMultByInt( %ldL ) ) break;\n", lValue );
+            fprintf( cargo->yyc, "\tif( hb_xvmMultByInt( " );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " ) ) break;\n" );
             return 1;
 
          case HB_P_DIVIDE:
-            fprintf( cargo->yyc, "\tif( hb_xvmDivideByInt( %ldL ) ) break;\n", lValue );
+            fprintf( cargo->yyc, "\tif( hb_xvmDivideByInt( " );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " ) ) break;\n" );
             return 1;
 
          case HB_P_MODULUS:
-            fprintf( cargo->yyc, "\tif( hb_xvmModulusByInt( %ldL ) ) break;\n", lValue );
+            fprintf( cargo->yyc, "\tif( hb_xvmModulusByInt( " );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " ) ) break;\n" );
             return 1;
 
          case HB_P_MINUS:
@@ -277,15 +318,21 @@ static int hb_gencc_checkNumAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE nPCo
 #endif
             /* hb_xvmAddInt( -lValue ) cannot be used because for objects
                it executes overloaded plus operator instead of minus one */
-            fprintf( cargo->yyc, "\tif( hb_xvmMinusInt( %ldL ) ) break;\n", lValue );
+            fprintf( cargo->yyc, "\tif( hb_xvmMinusInt( " );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " ) ) break;\n" );
             return 1;
 
          case HB_P_PLUS:
-            fprintf( cargo->yyc, "\tif( hb_xvmAddInt( %ldL ) ) break;\n", lValue );
+            fprintf( cargo->yyc, "\tif( hb_xvmAddInt( " );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " ) ) break;\n" );
             return 1;
 
          case HB_P_RETVALUE:
-            fprintf( cargo->yyc, "\thb_xvmRetInt( %ldL );\n", lValue );
+            fprintf( cargo->yyc, "\thb_xvmRetInt( " );
+            hb_gencc_intConst( cargo->yyc, lValue );
+            fprintf( cargo->yyc, " );\n" );
             return 1;
       }
    }
@@ -1282,11 +1329,9 @@ static HB_GENC_FUNC( hb_p_pushlong )
 
    if( iSkip == 0 )
    {
-      /* -2147483648L is unsigned in C90 when long is 32-bit */
-      if( lVal == -2147483647L - 1 )
-         fprintf( cargo->yyc, "\thb_xvmPushIntConst( -2147483647L - 1 );\n" );
-      else
-         fprintf( cargo->yyc, "\thb_xvmPushIntConst( %ldL );\n", lVal );
+      fprintf( cargo->yyc, "\thb_xvmPushIntConst( " );
+      hb_gencc_intConst( cargo->yyc, lVal );
+      fprintf( cargo->yyc, " );\n" );
    }
    return 5 + iSkip;
 }
@@ -1299,17 +1344,16 @@ static HB_GENC_FUNC( hb_p_pushlonglong )
    return 9;
 #elif LONG_MAX != LONGLONG_MAX
    HB_LONGLONG llVal;
-   char szBuf[ 24 ];
 
    HB_GENC_LABEL();
 
    llVal = HB_PCODE_MKLONGLONG( &pFunc->pCode[ nPCodePos + 1 ] );
-   fprintf( cargo->yyc, "\thb_xvmPushLongLong( HB_LL( %s ) );\n",
-            hb_numToStr( szBuf, sizeof( szBuf ), llVal ) );
+   fprintf( cargo->yyc, "\thb_xvmPushLongLong( " );
+   hb_gencc_intConst( cargo->yyc, llVal );
+   fprintf( cargo->yyc, " );\n" );
    return 9;
 #else
    HB_LONGLONG llVal;
-   char szBuf[ 24 ];
    int iSkip;
 
    HB_GENC_LABEL();
@@ -1319,10 +1363,15 @@ static HB_GENC_FUNC( hb_p_pushlonglong )
    iSkip = hb_gencc_checkNumAhead( llVal, pFunc, nPCodePos + 9, cargo );
 
    if( iSkip == 0 )
-      fprintf( cargo->yyc, "\thb_xvmPushIntConst( %ldL );\n", ( long ) llVal );
+   {
+      fprintf( cargo->yyc, "\thb_xvmPushIntConst( " );
+      hb_gencc_intConst( cargo->yyc, llVal );
+      fprintf( cargo->yyc, " );\n" );
+   }
    fprintf( cargo->yyc, "#else\n" );
-   fprintf( cargo->yyc, "\thb_xvmPushLongLong( HB_LL( %s ) );\n",
-            hb_numToStr( szBuf, sizeof( szBuf ), llVal ) );
+   fprintf( cargo->yyc, "\thb_xvmPushLongLong( " );
+   hb_gencc_intConst( cargo->yyc, llVal );
+   fprintf( cargo->yyc, " );\n" );
    if( iSkip > 0 )
    {
       int iDone = 0;
@@ -1803,36 +1852,6 @@ static HB_GENC_FUNC( hb_p_enumend )
    return 1;
 }
 
-/* Generate integer constant for SWITCH case which is compared with
- * HB_MAXINT value. With C90 rules or without LL suffix support
- * (e.g. MSVC) negative decimal constants may be unsigned and change
- * their value after conversion to HB_MAXINT, e.g. -2147483648L when
- * long is 32-bit. Such constants are generated as expressions and
- * constants which do not fit in 32-bit long are generated as positive
- * HB_LL() constants cast to HB_MAXINT before negation.
- */
-static void hb_gencc_switchConst( FILE * yyc, HB_MAXINT nValue )
-{
-   if( nValue >= -2147483647L && nValue <= 2147483647L )
-      fprintf( yyc, "%ldL", ( long ) nValue );
-   else if( nValue == -2147483647L - 1 )
-      fprintf( yyc, "( -2147483647L - 1 )" );
-   else
-   {
-      char szBuf[ 24 ];
-
-      if( nValue >= 0 )
-         fprintf( yyc, "( ( HB_MAXINT ) HB_LL( %s ) )",
-                  hb_numToStr( szBuf, sizeof( szBuf ), nValue ) );
-      else if( nValue >= -HB_VMLONG_MAX )
-         fprintf( yyc, "( -( HB_MAXINT ) HB_LL( %s ) )",
-                  hb_numToStr( szBuf, sizeof( szBuf ), -nValue ) );
-      else  /* minimal HB_MAXINT value cannot be negated */
-         fprintf( yyc, "( -( HB_MAXINT ) HB_LL( %s ) - 1 )",
-                  hb_numToStr( szBuf, sizeof( szBuf ), HB_VMLONG_MAX ) );
-   }
-}
-
 static HB_GENC_FUNC( hb_p_switch )
 {
    HB_USHORT usCases = HB_PCODE_MKUSHORT( &pFunc->pCode[ nPCodePos + 1 ] ), us;
@@ -1908,7 +1927,7 @@ static HB_GENC_FUNC( hb_p_switch )
       {
          case HB_P_PUSHLONG:
             fprintf( cargo->yyc, "\t\tif( ( type & HB_IT_NUMINT ) != 0 && nVal == " );
-            hb_gencc_switchConst( cargo->yyc, HB_PCODE_MKLONG( &pFunc->pCode[ nPCodePos + 1 ] ) );
+            hb_gencc_intConst( cargo->yyc, HB_PCODE_MKLONG( &pFunc->pCode[ nPCodePos + 1 ] ) );
             fprintf( cargo->yyc, " )\n" );
             nPCodePos += 5;
             break;
@@ -1919,7 +1938,7 @@ static HB_GENC_FUNC( hb_p_switch )
                      HB_PCODE_MKLONGLONG( &pFunc->pCode[ nPCodePos + 1 ] ) );
 #else
             fprintf( cargo->yyc, "\t\tif( ( type & HB_IT_NUMINT ) != 0 && nVal == " );
-            hb_gencc_switchConst( cargo->yyc, HB_PCODE_MKLONGLONG( &pFunc->pCode[ nPCodePos + 1 ] ) );
+            hb_gencc_intConst( cargo->yyc, HB_PCODE_MKLONGLONG( &pFunc->pCode[ nPCodePos + 1 ] ) );
             fprintf( cargo->yyc, " )\n" );
 #endif
             nPCodePos += 9;

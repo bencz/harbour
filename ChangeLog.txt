@@ -7,6 +7,26 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 06:35 UTC-0300 Alexandre Bencz
+  * src/compiler/gencc.c
+    ! fixed integer constants in -gc3 code which could not be compiled
+      or had wrong values on some platforms. -2147483648L is unsigned with
+      C90 rules when long is 32-bit, -9223372036854775808L is unsigned and
+      minimal 64-bit integer value was converted to garbage by
+      hb_numToStr() so generated code could not be compiled on platforms
+      where long is 32-bit (e.g. Win64, 32-bit platforms).
+      hb_gencc_switchConst() has been renamed to hb_gencc_intConst() and
+      it's used for all integer constants passed to hb_xvm*() functions.
+
+  * src/common/hbstr.c
+  * src/rtl/hbntos.c
+    ! fixed conversion of minimal integer value to string in hb_numToStr()
+      and hb_ntoC() (undefined behavior of signed integer overflow).
+      Absolute value is calculated using unsigned arithmetic.
+
+  * utils/hbtest/rt_hvma.prg
+    + added tests for minimal integer constants
+
 2026-11-24 06:30 UTC-0300 Alexandre Bencz
   * include/hbxvm.h
   * src/harbour.def

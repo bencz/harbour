@@ -794,21 +794,27 @@ char * hb_numToStr( char * szBuf, HB_SIZE nSize, HB_MAXINT lNumber )
 {
    int iPos = ( int ) nSize;
    HB_BOOL fNeg = HB_FALSE;
+   HB_MAXUINT nNumber;
 
    HB_TRACE( HB_TR_DEBUG, ( "hb_numToStr(%p, %" HB_PFS "u, %" PFHL "i)", ( void * ) szBuf, nSize, lNumber ) );
 
    szBuf[ --iPos ] = '\0';
+   /* absolute value calculated using unsigned arithmetic is valid
+    * also for minimal HB_MAXINT value
+    */
    if( lNumber < 0 )
    {
       fNeg = HB_TRUE;
-      lNumber = -lNumber;
+      nNumber = ( HB_MAXUINT ) 0 - ( HB_MAXUINT ) lNumber;
    }
+   else
+      nNumber = ( HB_MAXUINT ) lNumber;
 
    while( --iPos >= 0 )
    {
-      szBuf[ iPos ] = '0' + ( char ) ( lNumber % 10 );
-      lNumber /= 10;
-      if( lNumber == 0 )
+      szBuf[ iPos ] = '0' + ( char ) ( nNumber % 10 );
+      nNumber /= 10;
+      if( nNumber == 0 )
          break;
    }
    if( fNeg && --iPos >= 0 )

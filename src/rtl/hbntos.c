@@ -84,12 +84,15 @@ HB_FUNC( HB_NTOC )
 
       if( ! HB_IS_DOUBLE( pNumber ) )
       {
-         HB_MAXINT nNumber = hb_itemGetNInt( pNumber );
+         HB_MAXINT lNumber = hb_itemGetNInt( pNumber );
          int iPos = sizeof( szBuffer );
-         HB_BOOL fNeg = nNumber < 0;
+         HB_BOOL fNeg = lNumber < 0;
+         /* absolute value calculated using unsigned arithmetic is valid
+          * also for minimal HB_MAXINT value
+          */
+         HB_MAXUINT nNumber = fNeg ? ( HB_MAXUINT ) 0 - ( HB_MAXUINT ) lNumber :
+                                     ( HB_MAXUINT ) lNumber;
 
-         if( fNeg )
-            nNumber = -nNumber;
          szBuffer[ --iPos ] = '\0';
          do
          {
