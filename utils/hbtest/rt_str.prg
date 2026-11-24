@@ -675,7 +675,15 @@ PROCEDURE Main_STR()
    HBTEST Pad( "abcdef", 0 )                       IS ""
    HBTEST Pad( "abcdef", 5 )                       IS "abcde"
    HBTEST Pad( "abcdef", 10 )                      IS "abcdef    "
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
+   HBTEST Pad( "abcdef", 10, "" )                  IS "abcdef    "
+#else
    HBTEST Pad( "abcdef", 10, "" )                  IS "abcdef" + Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + Chr( 0 )
+#endif
+#else
+   HBTEST Pad( "abcdef", 10, "" )                  IS "abcdef" + Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + Chr( 0 )
+#endif
    HBTEST Pad( "abcdef", 10, "1" )                 IS "abcdef1111"
    HBTEST Pad( "abcdef", 10, "12" )                IS "abcdef1111"
 
@@ -702,7 +710,15 @@ PROCEDURE Main_STR()
    HBTEST PadR( "abcdef", 0 )                      IS ""
    HBTEST PadR( "abcdef", 5 )                      IS "abcde"
    HBTEST PadR( "abcdef", 10 )                     IS "abcdef    "
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
+   HBTEST PadR( "abcdef", 10, "" )                 IS "abcdef    "
+#else
    HBTEST PadR( "abcdef", 10, "" )                 IS "abcdef" + Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + Chr( 0 )
+#endif
+#else
+   HBTEST PadR( "abcdef", 10, "" )                 IS "abcdef" + Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + Chr( 0 )
+#endif
    HBTEST PadR( "abcdef", 10, "1" )                IS "abcdef1111"
    HBTEST PadR( "abcdef", 10, "12" )               IS "abcdef1111"
 
@@ -729,7 +745,15 @@ PROCEDURE Main_STR()
    HBTEST PadL( "abcdef", 0 )                      IS ""
    HBTEST PadL( "abcdef", 5 )                      IS "abcde"  /* QUESTION: CA-Cl*pper "bug", should return: "bcdef" ? */
    HBTEST PadL( "abcdef", 10 )                     IS "    abcdef"
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
+   HBTEST PadL( "abcdef", 10, "" )                 IS "    abcdef"
+#else
    HBTEST PadL( "abcdef", 10, "" )                 IS Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + "abcdef"
+#endif
+#else
+   HBTEST PadL( "abcdef", 10, "" )                 IS Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + Chr( 0 ) + "abcdef"
+#endif
    HBTEST PadL( "abcdef", 10, "1" )                IS "1111abcdef"
    HBTEST PadL( "abcdef", 10, "12" )               IS "1111abcdef"
 
@@ -757,7 +781,15 @@ PROCEDURE Main_STR()
    HBTEST PadC( "abcdef", 2 )                      IS "ab"  /* QUESTION: CA-Cl*pper "bug", should return: "cd" ? */
    HBTEST PadC( "abcdef", 5 )                      IS "abcde"
    HBTEST PadC( "abcdef", 10 )                     IS "  abcdef  "
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
+   HBTEST PadC( "abcdef", 10, "" )                 IS "  abcdef  "
+#else
    HBTEST PadC( "abcdef", 10, "" )                 IS Chr( 0 ) + Chr( 0 ) + "abcdef" + Chr( 0 ) + Chr( 0 )
+#endif
+#else
+   HBTEST PadC( "abcdef", 10, "" )                 IS Chr( 0 ) + Chr( 0 ) + "abcdef" + Chr( 0 ) + Chr( 0 )
+#endif
    HBTEST PadC( "abcdef", 10, "1" )                IS "11abcdef11"
    HBTEST PadC( "abcdef", 10, "12" )               IS "11abcdef11"
 

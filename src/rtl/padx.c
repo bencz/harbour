@@ -63,7 +63,13 @@ static const char * s_hb_padGet( PHB_CODEPAGE cdp, HB_SIZE * pnPad )
    const char * szPad = hb_parc( 3 );
 
    *pnPad = 1;
+#ifdef HB_CLP_STRICT
    if( szPad == NULL )
+#else
+   /* empty string is not used as pad character, CA-Cl*pper pads with
+      Chr( 0 ) then */
+   if( szPad == NULL || hb_parclen( 3 ) == 0 )
+#endif
       szPad = " ";
    else if( cdp )
    {

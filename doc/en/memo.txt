@@ -17,10 +17,14 @@
       <cString> is a string of chars to convert.
 
       <cHard> is the character to replace hard returns with. If not
-      specified defaults to semicolon.
+      specified defaults to semicolon. Empty string removes hard returns
+      (in CA-Cl*pper and HB_CLP_STRICT builds they are replaced by
+      Chr( 0 )).
 
       <cSoft> is the character to replace soft returns with. If not
-      specified defaults to single space.
+      specified defaults to single space. Empty string removes soft
+      returns (in CA-Cl*pper and HB_CLP_STRICT builds they are replaced
+      by Chr( 0 )).
    $RETURNS$
       <cConvertedString> Transformed string.
    $DESCRIPTION$

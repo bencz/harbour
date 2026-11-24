@@ -49,25 +49,29 @@
 
 /* NOTE: pszResult must have an allocated buffer of at least nStringLen */
 
-static HB_SIZE hb_strMemotran( char * pszResult, const char * pszString, HB_SIZE nStringLen, char cHardCR, char cSoftCR )
+/* iHardCR and iSoftCR are replacement characters or -1 when CR/LF pairs
+   are removed */
+static HB_SIZE hb_strMemotran( char * pszResult, const char * pszString, HB_SIZE nStringLen, int iHardCR, int iSoftCR )
 {
    HB_SIZE nStringPos = 0;
    HB_SIZE nResultPos = 0;
 
-   HB_TRACE( HB_TR_DEBUG, ( "hb_strMemotran(%p, %s, %" HB_PFS "u, %x, %x)", ( void * ) pszResult, pszString, nStringLen, cHardCR, cSoftCR ) );
+   HB_TRACE( HB_TR_DEBUG, ( "hb_strMemotran(%p, %s, %" HB_PFS "u, %d, %d)", ( void * ) pszResult, pszString, nStringLen, iHardCR, iSoftCR ) );
 
    while( nStringPos < nStringLen )
    {
       if(      pszString[ nStringPos ]     == HB_CHAR_HARD1 &&
                pszString[ nStringPos + 1 ] == HB_CHAR_HARD2 )
       {
-         pszResult[ nResultPos++ ] = cHardCR;
+         if( iHardCR >= 0 )
+            pszResult[ nResultPos++ ] = ( char ) iHardCR;
          nStringPos += 2;
       }
       else if( pszString[ nStringPos ]     == HB_CHAR_SOFT1 &&
                pszString[ nStringPos + 1 ] == HB_CHAR_SOFT2 )
       {
-         pszResult[ nResultPos++ ] = cSoftCR;
+         if( iSoftCR >= 0 )
+            pszResult[ nResultPos++ ] = ( char ) iSoftCR;
          nStringPos += 2;
       }
       else
@@ -88,12 +92,18 @@ HB_FUNC( MEMOTRAN )
       HB_SIZE nLen = hb_itemGetCLen( pString );
       char * pszResult = ( char * ) hb_xgrab( nLen + 1 );
       const char * pszRepl;
-      char cHardCR = ';';
-      char cSoftCR = ' ';
+      int iHardCR = ';';
+      int iSoftCR = ' ';
 
+      /* empty string removes CR/LF pairs, CA-Cl*pper replaces them
+         with Chr( 0 ) */
       pszRepl = hb_parc( 2 );
       if( pszRepl )
-         cHardCR = *pszRepl;
+#ifdef HB_CLP_STRICT
+         iHardCR = ( HB_UCHAR ) *pszRepl;
+#else
+         iHardCR = hb_parclen( 2 ) == 0 ? -1 : ( HB_UCHAR ) *pszRepl;
+#endif
 
       /* CA-Cl*pper checks 3rd cSoftCR parameter only
        * if 2nd one cHardCR is specified [druzus]
@@ -103,10 +113,14 @@ HB_FUNC( MEMOTRAN )
 #endif
       pszRepl = hb_parc( 3 );
       if( pszRepl )
-         cSoftCR = *pszRepl;
+#ifdef HB_CLP_STRICT
+         iSoftCR = ( HB_UCHAR ) *pszRepl;
+#else
+         iSoftCR = hb_parclen( 3 ) == 0 ? -1 : ( HB_UCHAR ) *pszRepl;
+#endif
 
       nLen = hb_strMemotran( pszResult, hb_itemGetCPtr( pString ), nLen,
-                             cHardCR, cSoftCR );
+                             iHardCR, iSoftCR );
       hb_retclen_buffer( pszResult, nLen );
    }
    else

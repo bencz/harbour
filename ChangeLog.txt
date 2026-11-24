@@ -7,6 +7,21 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 12:59 UTC-0300 Alexandre Bencz
+  * doc/en/memo.txt
+  * doc/en/string.txt
+  * src/rtl/mtran.c
+  * src/rtl/padx.c
+    * Pad(), PadL(), PadR(), PadC() and hb_[BU]Pad*() pad with blank
+      space when empty fill string is passed and MemoTran() removes hard
+      and soft returns when empty string is passed as replacement.
+      CA-Cl*pper uses Chr( 0 ) (the first byte of empty C string) in such
+      case and this behavior is kept in builds with HB_CLP_STRICT.
+
+  * utils/hbtest/rt_misc.prg
+  * utils/hbtest/rt_str.prg
+    * updated tests for empty fill and replacement strings
+
 2026-11-24 12:55 UTC-0300 Alexandre Bencz
   * src/vm/hashfunc.c
     ! hb_HDelAt() with position out of range generates BASE/1187 bound

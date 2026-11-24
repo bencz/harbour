@@ -1017,7 +1017,8 @@
 
       <nWidth> Width of output string
 
-      <cFill> Character to fill in the string
+      <cFill> Character to fill in the string, empty string means blank
+      space (in CA-Cl*pper and HB_CLP_STRICT builds Chr( 0 ))
    $RETURNS$
       <cString> The Center string of <xVal>
    $DESCRIPTION$
@@ -1067,7 +1068,8 @@
 
       <nWidth> Width of output string
 
-      <cFill> Character to fill in the string
+      <cFill> Character to fill in the string, empty string means blank
+      space (in CA-Cl*pper and HB_CLP_STRICT builds Chr( 0 ))
    $RETURNS$
       <cString> The left-justifies string of <xVal>
    $DESCRIPTION$
@@ -1117,7 +1119,8 @@
 
       <nWidth> Width of output string
 
-      <cFill> Character to fill in the string
+      <cFill> Character to fill in the string, empty string means blank
+      space (in CA-Cl*pper and HB_CLP_STRICT builds Chr( 0 ))
    $RETURNS$
       <cString> The right-justifies string of <xVal>
    $DESCRIPTION$

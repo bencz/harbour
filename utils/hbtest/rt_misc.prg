@@ -869,7 +869,15 @@ PROCEDURE Main_MISC()
    HBTEST MemoTran( "H"+NU+"O"+SO+LF+"P"+CR+LF+"M"+NU+"I" )                  IS "H" + Chr( 0 ) + "O P;M" + Chr( 0 ) + "I"
    HBTEST MemoTran( "M"+CR+"s"+CR+LF+"w"+SO+"w"+SO+LF+"h"+CR )               IS "M" + Chr( 13 ) + "s;w" + Chr( 141 ) + "w h" + Chr( 13 )
    HBTEST MemoTran( "M"+CR+"s"+CR+LF+"w"+SO+"w"+SO+LF+"h"+CR, "111", "222" ) IS "M" + Chr( 13 ) + "s1w" + Chr( 141 ) + "w2h" + Chr( 13 )
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
+   HBTEST MemoTran( "M"+CR+"s"+CR+LF+"w"+SO+"w"+SO+LF+"h"+CR, "", "" )       IS "M" + Chr( 13 ) + "s" + "w" + Chr( 141 ) + "w" + "h" + Chr( 13 )
+#else
    HBTEST MemoTran( "M"+CR+"s"+CR+LF+"w"+SO+"w"+SO+LF+"h"+CR, "", "" )       IS "M" + Chr( 13 ) + "s" + Chr( 0 ) + "w" + Chr( 141 ) + "w" + Chr( 0 ) + "h" + Chr( 13 )
+#endif
+#else
+   HBTEST MemoTran( "M"+CR+"s"+CR+LF+"w"+SO+"w"+SO+LF+"h"+CR, "", "" )       IS "M" + Chr( 13 ) + "s" + Chr( 0 ) + "w" + Chr( 141 ) + "w" + Chr( 0 ) + "h" + Chr( 13 )
+#endif
 
    /* MemoWrit()/MemoRead() */
 
