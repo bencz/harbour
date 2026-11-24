@@ -258,6 +258,12 @@ PROCEDURE Main_MATH()
    HBTEST Str( Int( Val( " 100" ) ) )      IS " 100"
    HBTEST Int( 5000000000.90 )             IS 5000000000
    HBTEST Int( -5000000000.90 )            IS -5000000000
+#ifdef __HARBOUR__
+   /* compile time optimization of Int() has to give the same results
+      as runtime Int() */
+   HBTEST ( l := 0.7, Int( ( 0.7 + 0.1 ) * 10 ) == Int( ( l + 0.1 ) * 10 ) )            IS .T.
+   HBTEST ( l := 0.7, &( "Int( ( 0.7 + 0.1 ) * 10 )" ) == Int( ( l + 0.1 ) * 10 ) )     IS .T.
+#endif
    HBTEST Int( 5000000000 )                IS 5000000000
    HBTEST Int( -5000000000 )               IS -5000000000
    HBTEST Int( 5000000000 ) / 100000       IS 50000

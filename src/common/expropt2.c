@@ -2417,12 +2417,15 @@ HB_BOOL hb_compExprReduceINT( PHB_EXPR pSelf, HB_COMP_DECL )
          pExpr = hb_compExprNewLong( pArg->value.asNum.val.l, HB_COMP_PARAM );
       else
       {
-         HB_MAXDBL dVal = ( HB_MAXDBL ) pArg->value.asNum.val.d;
+         /* the same truncation as in runtime Int() function, it uses
+            HB_DBLFL_PREC_FACTOR, e.g. Int( ( 0.7 + 0.1 ) * 10 ) is 8 */
+         double dNum = hb_numInt( pArg->value.asNum.val.d );
+         HB_MAXDBL dVal = ( HB_MAXDBL ) dNum;
+
          if( HB_DBL_LIM_LONG( dVal ) )
-            pExpr = hb_compExprNewLong( ( HB_MAXINT ) pArg->value.asNum.val.d, HB_COMP_PARAM );
+            pExpr = hb_compExprNewLong( ( HB_MAXINT ) dNum, HB_COMP_PARAM );
          else
-            pExpr = hb_compExprNewDouble( pArg->value.asNum.val.d,
-                                          pArg->value.asNum.bWidth, 0,
+            pExpr = hb_compExprNewDouble( dNum, pArg->value.asNum.bWidth, 0,
                                           HB_COMP_PARAM );
       }
       HB_COMP_EXPR_FREE( pParms );

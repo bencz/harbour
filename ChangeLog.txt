@@ -7,6 +7,19 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 12:02 UTC-0300 Alexandre Bencz
+  * src/common/expropt2.c
+    ! fixed compile time optimization of Int() in compiler and macro
+      compiler. It gave different results than runtime Int() function:
+      it did not use HB_DBLFL_PREC_FACTOR, e.g. Int( ( 0.7 + 0.1 ) * 10 )
+      was 7 when optimized and 8 at runtime, and values out of HB_MAXINT
+      range were not truncated, e.g. in builds without 64-bit integers
+      Int( 5000000000.90 ) gave 5000000001.
+      Now it uses hb_numInt() like runtime Int().
+
+  * utils/hbtest/rt_math.prg
+    + added tests for compile time optimization of Int()
+
 2026-11-24 11:57 UTC-0300 Alexandre Bencz
   * include/hbdefs.h
   * src/common/hbarch.c
