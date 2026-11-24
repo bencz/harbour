@@ -1053,12 +1053,11 @@ static HB_THREAD_STARTFUNC( hb_threadStartFunc )
     */
    hb_vmThreadQuit();
 
+   /* wake up threads waiting in hb_threadWait(), each of them decrements
+      s_waiting_for_threads when it leaves the wait so it's not cleared here */
    HB_CRITICAL_LOCK( s_thread_mtx );
    if( s_waiting_for_threads )
-   {
       HB_COND_SIGNALN( s_thread_cond, s_waiting_for_threads );
-      s_waiting_for_threads = 0;
-   }
    HB_CRITICAL_UNLOCK( s_thread_mtx );
 
    HB_THREAD_END
@@ -1402,10 +1401,11 @@ static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
       else
          fExit = pthread_cond_wait( &s_thread_cond, &s_thread_mtx ) != 0;
       hb_vmLock();
+      s_waiting_for_threads--;
 #else
 #  if defined( HB_TASK_THREAD )
       hb_vmUnlock();
-      fExit = hb_taskWait( &s_thread_cond, &s_thread_mtx, ulMilliSec );
+      fExit = ! hb_taskWait( &s_thread_cond, &s_thread_mtx, ulMilliSec );
       hb_vmLock();
 #  elif defined( HB_COND_HARBOUR_SUPPORT )
       hb_vmUnlock();
@@ -1418,9 +1418,8 @@ static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
       fExit = ! HB_COND_TIMEDWAIT( s_thread_cond, ulMilliSec );
       hb_vmLock();
       HB_CRITICAL_LOCK( s_thread_mtx );
-      if( fExit )
-         s_waiting_for_threads--;
 #  endif
+      s_waiting_for_threads--;
       if( ! fExit && timer )
       {
          HB_MAXUINT curr = hb_timerGet();

@@ -63,6 +63,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES1()              IS "OK"
       HBTEST DO_MTTES2()              IS "3"
       HBTEST DO_MTTES3()              IS "1/123"
+      HBTEST DO_MTTES4()              IS "0/.T./1/2"
    ENDIF
 #endif
 
@@ -175,6 +176,35 @@ STATIC FUNCTION thRefWriter( mtx, x )
    x := 123
 
    RETURN x
+
+/* hb_threadWait() cannot finish before timeout when other thread ends */
+STATIC FUNCTION DO_MTTES4()
+
+   LOCAL mtx, thSlow, thFast, nStart, nRes, lTime
+
+   mtx := hb_mutexCreate()
+   thSlow := hb_threadStart( @thWaitSlow(), mtx )
+   thFast := hb_threadStart( @thWaitFast() )
+   nStart := hb_MilliSeconds()
+   nRes := hb_threadWait( thSlow, 0.5 )
+   lTime := hb_MilliSeconds() - nStart >= 400
+   hb_mutexNotify( mtx )
+
+   RETURN hb_ntos( nRes ) + "/" + hb_ValToStr( lTime ) + "/" + ;
+          hb_ntos( hb_threadWait( thSlow ) ) + "/" + ;
+          hb_ntos( hb_threadWait( { thFast, thSlow },, .T. ) )
+
+STATIC PROCEDURE thWaitSlow( mtx )
+
+   hb_mutexSubscribe( mtx )
+
+   RETURN
+
+STATIC PROCEDURE thWaitFast()
+
+   hb_idleSleep( 0.1 )
+
+   RETURN
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 

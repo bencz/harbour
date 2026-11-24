@@ -7,6 +7,20 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 07:58 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed counter of threads waiting in hb_threadWait(). It was
+      incremented before each wait but decremented only on timeout in
+      one branch and cleared when any thread finished, so it was wrong
+      after timeouts. Now each thread decrements it when it leaves the
+      wait and it's not cleared when thread finishes.
+    ! fixed hb_threadWait() in builds with HB_TASK_THREAD. Result of
+      hb_taskWait() was inverted so hb_threadWait() / hb_threadJoin()
+      returned before timeout when any other thread finished.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for hb_threadWait() with timeout
+
 2026-11-24 07:30 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed parameters passed by reference to new thread, e.g.
