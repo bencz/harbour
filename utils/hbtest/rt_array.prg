@@ -400,6 +400,7 @@ PROCEDURE Main_ARRAY()
 #ifdef __HARBOUR__
    /* deeply nested arrays should not exhaust C stack in GC and release code */
    HBTEST TADeep( 500000 )                IS "500000/1/2"
+   HBTEST TALinked( 200000 )              IS "20000100000/1/100000"
 
    /* compile time optimization of Len() and Empty() cannot remove
       expressions with side effects and cannot count duplicated hash keys */
@@ -443,6 +444,45 @@ STATIC FUNCTION TASOSM2()
    RETURN cString + Str( Len( aArray ) ) + XToStrX( aArray )
 
 #ifdef __HARBOUR__
+
+/* linked list of { value, next } arrays: walked, reversed in place,
+   every second node unlinked and released */
+STATIC FUNCTION TALinked( nCount )
+
+   LOCAL aHead := NIL, aNode, aPrev, aNext, i, nSum := 0, nFirst, nLen := 0
+
+   FOR i := 1 TO nCount
+      aHead := { i, aHead }
+   NEXT
+   aNode := aHead
+   DO WHILE aNode != NIL
+      nSum += aNode[ 1 ]
+      aNode := aNode[ 2 ]
+   ENDDO
+   aPrev := NIL
+   aNode := aHead
+   DO WHILE aNode != NIL
+      aNext := aNode[ 2 ]
+      aNode[ 2 ] := aPrev
+      aPrev := aNode
+      aNode := aNext
+   ENDDO
+   aHead := aPrev
+   nFirst := aHead[ 1 ]
+   aNode := aHead
+   DO WHILE aNode != NIL .AND. aNode[ 2 ] != NIL
+      aNode[ 2 ] := aNode[ 2 ][ 2 ]
+      aNode := aNode[ 2 ]
+   ENDDO
+   aNode := aHead
+   DO WHILE aNode != NIL
+      nLen++
+      aNode := aNode[ 2 ]
+   ENDDO
+   aHead := NIL
+   hb_gcAll( .T. )
+
+   RETURN hb_ntos( nSum ) + "/" + hb_ntos( nFirst ) + "/" + hb_ntos( nLen )
 
 STATIC FUNCTION TADeep( nDepth )
 

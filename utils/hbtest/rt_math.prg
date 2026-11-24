@@ -713,6 +713,8 @@ PROCEDURE Main_MATH()
 #else
    HBTEST "PP /"                                              IS "PP / failed"
 #endif
+   /* integer random number generators (exact 64-bit integer arithmetic) */
+   HBTEST TRandGen( 20000 )                                   IS "21480720689328/43061804023439/42877660307756/42842606655438/10276660"
 #endif
 
    RETURN
@@ -746,6 +748,45 @@ STATIC FUNCTION TMultC5( n )
 STATIC FUNCTION TMultC4( n )
    /* the second multiplication overflows HB_MAXINT */
    RETURN n * 2147483647 * 4 > 9223372036854775807
+
+/* 31-bit linear congruential generator, 64-bit and 32-bit xorshift and
+   multiply-with-carry generators, their sums and histogram checksum */
+STATIC FUNCTION TRandGen( nCount )
+
+   LOCAL aHist := AFill( Array( 256 ), 0 ), i, nRnd, nCheck := 0
+   LOCAL nLcg := 12345, nXs64 := 88172645463325252, nZ := 362436069, nW := 521288629, nXs32 := 2463534242
+   LOCAL nSum1 := 0, nSum2 := 0, nSum3 := 0, nSum4 := 0
+
+   FOR i := 1 TO nCount
+      nLcg := hb_bitAnd( nLcg * 1103515245 + 12345, 0x7FFFFFFF )
+      nSum1 += nLcg
+      aHist[ hb_bitShift( nLcg, -23 ) + 1 ]++
+
+      nXs64 := hb_bitXor( nXs64, hb_bitShift( nXs64, 13 ) )
+      nXs64 := hb_bitXor( nXs64, hb_bitAnd( hb_bitShift( nXs64, -7 ), 0x01FFFFFFFFFFFFFF ) )
+      nXs64 := hb_bitXor( nXs64, hb_bitShift( nXs64, 17 ) )
+      nRnd := hb_bitAnd( hb_bitShift( nXs64, -32 ), 0xFFFFFFFF )
+      nSum2 += nRnd
+      aHist[ hb_bitShift( nRnd, -24 ) + 1 ]++
+
+      nZ := 36969 * hb_bitAnd( nZ, 0xFFFF ) + hb_bitShift( nZ, -16 )
+      nW := 18000 * hb_bitAnd( nW, 0xFFFF ) + hb_bitShift( nW, -16 )
+      nRnd := hb_bitAnd( hb_bitShift( nZ, 16 ) + nW, 0xFFFFFFFF )
+      nSum3 += nRnd
+      aHist[ hb_bitShift( nRnd, -24 ) + 1 ]++
+
+      nXs32 := hb_bitXor( nXs32, hb_bitAnd( hb_bitShift( nXs32, 13 ), 0xFFFFFFFF ) )
+      nXs32 := hb_bitXor( nXs32, hb_bitShift( nXs32, -17 ) )
+      nXs32 := hb_bitXor( nXs32, hb_bitAnd( hb_bitShift( nXs32, 5 ), 0xFFFFFFFF ) )
+      nSum4 += nXs32
+      aHist[ hb_bitShift( nXs32, -24 ) + 1 ]++
+   NEXT
+   FOR i := 1 TO 256
+      nCheck += aHist[ i ] * i
+   NEXT
+
+   RETURN hb_ntos( nSum1 ) + "/" + hb_ntos( nSum2 ) + "/" + hb_ntos( nSum3 ) + "/" + ;
+          hb_ntos( nSum4 ) + "/" + hb_ntos( nCheck )
 
 #endif
 

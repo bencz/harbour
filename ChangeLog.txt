@@ -7,6 +7,14 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 08:28 UTC-0300 Alexandre Bencz
+  * utils/hbtest/rt_array.prg
+  * utils/hbtest/rt_math.prg
+    + added tests based on random_massivo and linked_list benchmarks:
+      integer random number generators which need exact 64-bit integer
+      multiplication (it was calculated in doubles by -gc3 code) and long
+      linked list of arrays (its release exhausted C stack)
+
 2026-11-24 08:24 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed deadlock in hb_threadWait() / hb_threadJoin() with GC.
