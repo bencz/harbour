@@ -7,6 +7,16 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 10:56 UTC-0300 Alexandre Bencz
+  * src/vm/task.c
+    ! fixed reporting of deadlocks and other internal errors detected in
+      builds with HB_TASK_THREAD. hb_errInternal() unlocks HVM when it
+      writes the error log so it called hb_taskYield() which detected the
+      deadlock again and again until stack overflow. Now tasks are not
+      switched after internal error so the current task can finish the
+      error report and if it has to wait for something which cannot
+      happen then short message is printed and application terminated.
+
 2026-11-24 10:48 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed access to freed memory in hb_threadWait() and hb_threadJoin().

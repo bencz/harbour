@@ -56,6 +56,8 @@
 #  include <windows.h>
 #endif
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #if defined( HB_OS_UNIX )
 #  include <sys/time.h>
@@ -201,6 +203,10 @@ static PHB_TASKMTX s_mutexList = NULL;
 
 static int s_iTaskID = 0;
 
+/* set when unrecoverable error is reported by task code */
+static HB_BOOL s_fFatal = HB_FALSE;
+static const char * s_szFatal = NULL;
+
 static HB_MAXINT hb_taskTimeStop( unsigned long ulMilliSec )
 {
    if( ulMilliSec == HB_TASK_INFINITE_WAIT )
@@ -337,6 +343,24 @@ static void hb_taskWakeUp( PHB_TASKINFO pTask )
    }
 }
 
+/* hb_errInternal() may call hb_taskYield() again (e.g. by file IO when
+ * HVM is unlocked) so tasks are not switched anymore and the current one
+ * finishes the error report, it may be blocked task which detected
+ * deadlock so it's woken up first
+ */
+static void hb_taskFatal( const char * szText )
+{
+   s_fFatal = HB_TRUE;
+   s_szFatal = szText;
+   if( s_currTask )
+   {
+      if( s_currTask->state == TASK_SLEEPING )
+         hb_taskWakeUp( s_currTask );
+      s_currTask->state = TASK_RUNNING;
+   }
+   hb_errInternal( HB_EI_ERRUNRECOV, szText, NULL, NULL );
+}
+
 static PHB_TASKINFO hb_taskSwitchLock( PHB_TASKMTX pMutex )
 {
    PHB_TASKINFO pTask = pMutex->lockers;
@@ -346,7 +370,7 @@ static PHB_TASKINFO hb_taskSwitchLock( PHB_TASKMTX pMutex )
       pMutex->lockers = pTask->pBlockNext;
 #ifdef HB_TASK_DEBUG
       if( pTask->locking != pMutex )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskSwitchLock: broken lock", NULL, NULL );
+         hb_taskFatal( "TaskSwitchLock: broken lock" );
 #endif
       pTask->locking = NULL;
       pTask->locked++;
@@ -358,7 +382,7 @@ static PHB_TASKINFO hb_taskSwitchLock( PHB_TASKMTX pMutex )
          pTask->state = TASK_RUNNING;
       }
       else if( pTask->state != TASK_RUNNING )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskSwitchLock: task resumed", NULL, NULL );
+         hb_taskFatal( "TaskSwitchLock: task resumed" );
    }
    return pTask;
 }
@@ -396,7 +420,7 @@ static void hb_taskFinalize( PHB_TASKINFO pTask )
       }
 #ifdef HB_TASK_DEBUG
       if( pTask->joiners )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskFinalize: dummy joiners", NULL, NULL );
+         hb_taskFatal( "TaskFinalize: dummy joiners" );
 #endif
    }
 
@@ -420,7 +444,7 @@ static void hb_taskFinalize( PHB_TASKINFO pTask )
       }
 #ifdef HB_TASK_DEBUG
       if( pTask->locking )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskFinalize: dummy lock", NULL, NULL );
+         hb_taskFatal( "TaskFinalize: dummy lock" );
 #endif
    }
 
@@ -442,7 +466,7 @@ static void hb_taskFinalize( PHB_TASKINFO pTask )
       }
 #ifdef HB_TASK_DEBUG
       if( pTask->waiting )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskFinalize: dummy cond", NULL, NULL );
+         hb_taskFatal( "TaskFinalize: dummy cond" );
 #endif
    }
 
@@ -469,7 +493,7 @@ static void hb_taskFinalize( PHB_TASKINFO pTask )
 
 #ifdef HB_TASK_DEBUG
       if( pTask->locked )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskFinalize: dummy lock", NULL, NULL );
+         hb_taskFatal( "TaskFinalize: dummy lock" );
 #endif
    }
 
@@ -521,7 +545,7 @@ static PHB_TASKINFO hb_taskNew( long stack_size )
 #if defined( HB_HAS_UCONTEXT )
    /* create new execution context and initialize its private stack */
    if( getcontext( &pTask->context ) == -1 )
-      hb_errInternal( HB_EI_ERRUNRECOV, "getcontext", NULL, NULL );
+      hb_taskFatal( "getcontext" );
    pTask->context.uc_link          = NULL;
    pTask->context.uc_stack.ss_sp   = pTask->stack;
    pTask->context.uc_stack.ss_size = pTask->stack_size;
@@ -655,6 +679,27 @@ void hb_taskYield( void )
 {
    PHB_TASKINFO pTask = s_currTask->pNext;
 
+   if( s_fFatal )
+   {
+      /* the current task cannot wait for anything without timeout when
+       * other tasks are not resumed so the error report cannot be finished
+       */
+      if( s_currTask->state == TASK_SUSPEND ||
+          ( s_currTask->state == TASK_SLEEPING &&
+            s_currTask->wakeup == HB_TASK_INFINITE_DELAY ) )
+      {
+         fprintf( stderr, "\nUnrecoverable error %d: %s\n", HB_EI_ERRUNRECOV,
+                  s_szFatal ? s_szFatal : "" );
+         exit( EXIT_FAILURE );
+      }
+      /* timed sleep: remove the task from the sleep list, it's not
+       * suspended when tasks are not switched */
+      if( s_currTask->state == TASK_SLEEPING )
+         hb_taskWakeUp( s_currTask );
+      s_currTask->state = TASK_RUNNING;
+      return;
+   }
+
    while( pTask != s_currTask )
    {
       if( pTask->state == TASK_RUNNING || pTask->state == TASK_INIT )
@@ -692,7 +737,10 @@ void hb_taskYield( void )
          pTask->state = TASK_RUNNING;
       }
       else
-         hb_errInternal( HB_EI_ERRUNRECOV, "DEADLOCK", NULL, NULL );
+      {
+         hb_taskFatal( "DEADLOCK" );
+         return;
+      }
    }
 
    hb_taskResume( pTask );
@@ -785,10 +833,10 @@ void hb_taskResume( void * pTaskPtr )
 
          case TASK_ZOMBIE:
             /* It should not happen - it's bug in user code */
-            hb_errInternal( HB_EI_ERRUNRECOV, "TaskResume: zombie", NULL, NULL );
+            hb_taskFatal( "TaskResume: zombie" );
 /*
          default:
-            hb_errInternal( HB_EI_ERRUNRECOV, "TaskResume: corrupt", NULL, NULL );
+            hb_taskFatal( "TaskResume: corrupt" );
  */
       }
    }
@@ -932,7 +980,7 @@ int hb_taskLock( void ** pMutexPtr, unsigned long ulMilliSec )
          }
 #ifdef HB_TASK_DEBUG
          if( s_currTask->locking )
-            hb_errInternal( HB_EI_ERRUNRECOV, "TaskLock: dummy lock", NULL, NULL );
+            hb_taskFatal( "TaskLock: dummy lock" );
 #endif
       }
    }
@@ -977,7 +1025,7 @@ void hb_taskSignal( void ** pCondPtr )
 
 #ifdef HB_TASK_DEBUG
       if( pTask->waiting != pCond )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskSignal: broken cond", NULL, NULL );
+         hb_taskFatal( "TaskSignal: broken cond" );
 #endif
       pTask->waiting = NULL;
       pCond->waiters = pTask->pWaitNext;
@@ -1013,7 +1061,7 @@ void hb_taskBroadcast( void ** pCondPtr )
 
 #ifdef HB_TASK_DEBUG
          if( pTask->waiting != pCond )
-            hb_errInternal( HB_EI_ERRUNRECOV, "TaskBroadcast: broken cond", NULL, NULL );
+            hb_taskFatal( "TaskBroadcast: broken cond" );
 #endif
          pTask->waiting = NULL;
          pCond->waiters = pTask->pWaitNext;
@@ -1038,10 +1086,10 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
    int iCount, iResult;
 
    if( pMutex == NULL )
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: no mutex", NULL, NULL );
+      hb_taskFatal( "TaskWait: no mutex" );
 
    if( pMutex->count == 0 || pMutex->task != s_currTask )
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: no mutex lock", NULL, NULL );
+      hb_taskFatal( "TaskWait: no mutex lock" );
 
    if( *pCondPtr == NULL )
       *pCondPtr = ( void * ) hb_taskCondNew();
@@ -1050,7 +1098,7 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
 
    /* POSIX threads have such condition */
    if( pCond->waiters && pCond->mutex != pMutex )
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: wrong mutex", NULL, NULL );
+      hb_taskFatal( "TaskWait: wrong mutex" );
 
    /* add task to conditional variable waiting queue */
    pWaiters = &pCond->waiters;
@@ -1090,7 +1138,7 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
       }
 #ifdef HB_TASK_DEBUG
       if( s_currTask->waiting )
-         hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: dummy cond", NULL, NULL );
+         hb_taskFatal( "TaskWait: dummy cond" );
 #endif
       iResult = 0;
    }
@@ -1105,7 +1153,7 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
 
    if( pMutex->task != s_currTask &&
        ! hb_taskLock( pMutexPtr, HB_TASK_INFINITE_WAIT ) )
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: lock fail", NULL, NULL );
+      hb_taskFatal( "TaskWait: lock fail" );
 
    pMutex->count = iCount;
 
@@ -1126,15 +1174,15 @@ void hb_taskDestroyMutex( void ** pMutexPtr )
          {
             *pMutexLst = pMutex->next;
             if( pMutex->count )
-               hb_errInternal( HB_EI_ERRUNRECOV, "TaskDestroyMutex: locked", NULL, NULL );
+               hb_taskFatal( "TaskDestroyMutex: locked" );
             else if( pMutex->lockers )
-               hb_errInternal( HB_EI_ERRUNRECOV, "TaskDestroyMutex: lockers", NULL, NULL );
+               hb_taskFatal( "TaskDestroyMutex: lockers" );
             hb_xfree( pMutex );
             return;
          }
          pMutexLst = &( *pMutexLst )->next;
       }
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskDestroyMutex: not a mutex", NULL, NULL );
+      hb_taskFatal( "TaskDestroyMutex: not a mutex" );
    }
 }
 
@@ -1152,12 +1200,12 @@ void hb_taskDestroyCond( void ** pCondPtr )
          {
             *pCondLst = pCond->next;
             if( pCond->waiters )
-               hb_errInternal( HB_EI_ERRUNRECOV, "TaskDestroyCond: waiters", NULL, NULL );
+               hb_taskFatal( "TaskDestroyCond: waiters" );
             hb_xfree( pCond );
             return;
          }
          pCondLst = &( *pCondLst )->next;
       }
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskDestroyCond: not a cond", NULL, NULL );
+      hb_taskFatal( "TaskDestroyCond: not a cond" );
    }
 }
