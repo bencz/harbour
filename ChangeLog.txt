@@ -7,6 +7,21 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 08:33 UTC-0300 Alexandre Bencz
+  * src/vm/task.c
+    ! fixed hb_taskWait() used by builds with HB_TASK_THREAD (cooperative
+      threads, i.e. DOS). After timeout the task locked the mutex before
+      it was removed from conditional variable waiting queue, so signal
+      could add it to mutex lockers queue second time and task signaled
+      just before timeout locked the mutex again though it was already in
+      lockers queue. It corrupted task queues causing internal errors
+      (e.g. 9000 DEADLOCK), hangups and crashes.
+      Now the task is removed from waiting queue before it locks the mutex
+      and signaled task waits until the mutex is passed to it.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for many threads waiting for notifications with timeout
+
 2026-11-24 08:28 UTC-0300 Alexandre Bencz
   * utils/hbtest/rt_array.prg
   * utils/hbtest/rt_math.prg

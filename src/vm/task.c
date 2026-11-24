@@ -1032,7 +1032,7 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
    PHB_TASKINFO * pWaiters;
    PHB_TASKMTX pMutex = ( PHB_TASKMTX ) *pMutexPtr;
    PHB_TASKCOND pCond;
-   int iCount;
+   int iCount, iResult;
 
    if( pMutex == NULL )
       hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: no mutex", NULL, NULL );
@@ -1067,11 +1067,10 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
 
    hb_taskSleep( ulMilliSec );
 
-   if( ! hb_taskLock( pMutexPtr, HB_TASK_INFINITE_WAIT ) )
-      hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: lock fail", NULL, NULL );
-
-   pMutex->count = iCount;
-
+   /* timeout: remove task from conditional variable waiting queue before
+    * the mutex is locked so signal or broadcast cannot add it to mutex
+    * lockers queue when it's already locking the mutex
+    */
    if( s_currTask->waiting )
    {
       pWaiters = &pCond->waiters;
@@ -1090,10 +1089,24 @@ int hb_taskWait( void ** pCondPtr, void ** pMutexPtr, unsigned long ulMilliSec )
       if( s_currTask->waiting )
          hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: dummy cond", NULL, NULL );
 #endif
-      return 0;
+      iResult = 0;
    }
    else
-      return 1;
+      iResult = 1;
+
+   /* task was signaled but timeout passed before the mutex was passed to
+    * it so it's still in mutex lockers queue, wait for the mutex there
+    */
+   while( s_currTask->locking )
+      hb_taskSleep( HB_TASK_INFINITE_WAIT );
+
+   if( pMutex->task != s_currTask &&
+       ! hb_taskLock( pMutexPtr, HB_TASK_INFINITE_WAIT ) )
+      hb_errInternal( HB_EI_ERRUNRECOV, "TaskWait: lock fail", NULL, NULL );
+
+   pMutex->count = iCount;
+
+   return iResult;
 }
 
 void hb_taskDestroyMutex( void ** pMutexPtr )

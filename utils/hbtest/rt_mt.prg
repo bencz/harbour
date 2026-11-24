@@ -51,6 +51,8 @@
 
 #define N_THREADS 5
 #define N_JOBS    1000
+#define N_SUBS    20
+#define N_NOTIFY  2000
 
 #ifdef __HARBOUR__
 STATIC s_aMTRef
@@ -64,6 +66,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES2()              IS "3"
       HBTEST DO_MTTES3()              IS "1/123"
       HBTEST DO_MTTES4()              IS "0/.T./1/2"
+      HBTEST DO_MTTES5()              IS "2000/2001000"
    ENDIF
 #endif
 
@@ -203,6 +206,48 @@ STATIC PROCEDURE thWaitSlow( mtx )
 STATIC PROCEDURE thWaitFast()
 
    hb_idleSleep( 0.1 )
+
+   RETURN
+
+/* many threads waiting with short timeout for notifications,
+   each notification has to be received exactly once */
+STATIC FUNCTION DO_MTTES5()
+
+   LOCAL aThreads := {}, mtx, mtxCount, aCount := { 0, 0 }, i
+
+   mtx := hb_mutexCreate()
+   mtxCount := hb_mutexCreate()
+   FOR i := 1 TO N_SUBS
+      AAdd( aThreads, hb_threadStart( @thSubTimed(), mtx, mtxCount, aCount ) )
+   NEXT
+   FOR i := 1 TO N_NOTIFY
+      hb_mutexNotify( mtx, i )
+      IF i % 100 == 0
+         hb_idleSleep( 0.002 )
+      ENDIF
+   NEXT
+   FOR i := 1 TO N_SUBS
+      hb_mutexNotify( mtx, NIL )
+   NEXT
+   AEval( aThreads, {| x | hb_threadJoin( x ) } )
+
+   RETURN hb_ntos( aCount[ 1 ] ) + "/" + hb_ntos( aCount[ 2 ] )
+
+STATIC PROCEDURE thSubTimed( mtx, mtxCount, aCount )
+
+   LOCAL xValue
+
+   DO WHILE .T.
+      IF hb_mutexSubscribe( mtx, 0.001, @xValue )
+         IF xValue == NIL
+            EXIT
+         ENDIF
+         hb_mutexLock( mtxCount )
+         aCount[ 1 ]++
+         aCount[ 2 ] += xValue
+         hb_mutexUnlock( mtxCount )
+      ENDIF
+   ENDDO
 
    RETURN
 
