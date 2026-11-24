@@ -674,6 +674,10 @@ PROCEDURE Main_MATH()
    HBTEST &( "0xFFFFFFFFFFFFFFFF" )                              IS -1
 #endif
 
+   /* additional parameters of reduced functions are evaluated */
+   HBTEST TFoldArgs()                     IS "4/2/2/.T./-1/A/65/.F./8"
+   HBTEST TFoldArgsMacro()                IS "65/A/2/A/.F./4/-1/.T./.T./9"
+
 #endif
 
 #ifdef __HARBOUR__
@@ -845,6 +849,41 @@ STATIC FUNCTION TRandGen( nCount )
 
    RETURN hb_ntos( nSum1 ) + "/" + hb_ntos( nSum2 ) + "/" + hb_ntos( nSum3 ) + "/" + ;
           hb_ntos( nSum4 ) + "/" + hb_ntos( nCheck )
+
+STATIC FUNCTION TFoldArgs()
+
+   LOCAL n := 0, cResult
+
+   cResult := hb_ntos( hb_bitShift( 1, 2, n++ ) ) + "/" + ;
+              hb_ntos( hb_bitSet( 0, 1, n++ ) ) + "/" + ;
+              hb_ntos( hb_bitReset( 3, 0, n++ ) ) + "/" + ;
+              hb_ValToStr( hb_bitTest( 2, 1, n++ ) ) + "/" + ;
+              hb_ntos( hb_bitNot( 0, n++ ) ) + "/" + ;
+              hb_BChar( 65, n++ ) + "/" + ;
+              hb_ntos( hb_BCode( "A", n++ ) ) + "/" + ;
+              hb_ValToStr( Empty( hb_SToT( "20200101", n++ ) ) )
+
+   RETURN cResult + "/" + hb_ntos( n )
+
+STATIC FUNCTION TFoldArgsMacro()
+
+   LOCAL cResult
+
+   MEMVAR p_nFold
+
+   PRIVATE p_nFold := 0
+
+   cResult := hb_ntos( &( "Asc( 'A', p_nFold++ )" ) ) + "/" + ;
+              &( "Chr( 65, p_nFold++ )" ) + "/" + ;
+              hb_ntos( &( "Len( 'ab', p_nFold++ )" ) ) + "/" + ;
+              &( "Upper( 'a', p_nFold++ )" ) + "/" + ;
+              hb_ValToStr( &( "Empty( 1, p_nFold++ )" ) ) + "/" + ;
+              hb_ntos( &( "hb_bitShift( 1, 2, p_nFold++ )" ) ) + "/" + ;
+              hb_ntos( &( "hb_bitNot( 0, p_nFold++ )" ) ) + "/" + ;
+              hb_ValToStr( &( "hb_bitTest( 2, 1, p_nFold++ )" ) ) + "/" + ;
+              hb_ValToStr( Empty( &( "CToD( '', p_nFold++ )" ) ) )
+
+   RETURN cResult + "/" + hb_ntos( p_nFold )
 
 #endif
 

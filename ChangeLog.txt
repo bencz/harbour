@@ -7,6 +7,19 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:30 UTC-0300 Alexandre Bencz
+  * include/hbexprb.c
+    ! functions are reduced at compile time only when they are called
+      with the number of parameters they use. Additional parameters were
+      removed with their side effects, e.g. n++ was not executed in
+      hb_bitShift( 1, 2, n++ ) and in macro compiled Asc( "A", n++ ).
+      It was possible for hb_bit*(), hb_BChar(), hb_BCode() and hb_SToT()
+      and in macro compiler also for Asc(), Chr(), Len(), Upper(), Empty()
+      and CToD(), whose number of parameters is checked only by compiler.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for additional parameters of reduced functions
+
 2026-11-24 13:24 UTC-0300 Alexandre Bencz
   * src/rtl/sha2.c
     ! fixed SHA-224, SHA-256, SHA-384 and SHA-512 digests of messages

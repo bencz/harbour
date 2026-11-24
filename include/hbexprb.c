@@ -1762,6 +1762,13 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
             if( hb_compFunCallCheck( HB_COMP_PARAM, pSelf->value.asFunCall.pFunName->value.asSymbol.name, usCount ) )
 #endif
             {
+               /* functions are reduced only when they are called with
+                * the number of parameters they use, otherwise side effects
+                * of additional parameters, e.g. hb_bitShift( 1, 2, n++ ),
+                * would be lost. The compiler checks number of parameters of
+                * some of them in hb_compFunCallCheck() but macro compiler
+                * does not.
+                */
                switch( funcID )
                {
                   case HB_F_AT:
@@ -1769,24 +1776,24 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                         hb_compExprReduceAT( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_ASC:
-                     if( usCount )
+                     if( usCount == 1 )
                         hb_compExprReduceASC( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_CHR:
-                     if( usCount )
+                     if( usCount == 1 )
                         hb_compExprReduceCHR( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_LEN:
-                     if( usCount )
+                     if( usCount == 1 )
                         hb_compExprReduceLEN( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_UPPER:
-                     if( usCount )
+                     if( usCount == 1 )
                         hb_compExprReduceUPPER( pSelf, HB_COMP_PARAM );
                      break;
 
                   case HB_F_EMPTY:
-                     if( usCount && HB_SUPPORT_HARBOUR )
+                     if( usCount == 1 && HB_SUPPORT_HARBOUR )
                         hb_compExprReduceEMPTY( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_INT:
@@ -1806,23 +1813,24 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                         hb_compExprReduceSTOD( pSelf, usCount, HB_COMP_PARAM );
                      break;
                   case HB_F_STOT:
-                     hb_compExprReduceSTOT( pSelf, usCount, HB_COMP_PARAM );
+                     if( usCount < 2 )
+                        hb_compExprReduceSTOT( pSelf, usCount, HB_COMP_PARAM );
                      break;
                   case HB_F_DTOS:
                      if( usCount == 1 )
                         hb_compExprReduceDTOS( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_CTOD:
-                     if( usCount && HB_SUPPORT_HARBOUR )
+                     if( usCount == 1 && HB_SUPPORT_HARBOUR )
                         hb_compExprReduceCTOD( pSelf, HB_COMP_PARAM );
                      break;
 
                   case HB_F_BCHAR:
-                     if( usCount )
+                     if( usCount == 1 )
                         hb_compExprReduceBCHAR( pSelf, HB_COMP_PARAM );
                      break;
                   case HB_F_BCODE:
-                     if( usCount )
+                     if( usCount == 1 )
                         hb_compExprReduceBCODE( pSelf, HB_COMP_PARAM );
                      break;
 
@@ -1832,7 +1840,9 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                   case HB_F_BITSET:
                   case HB_F_BITRESET:
                   case HB_F_BITSHIFT:
-                     if( usCount >= 2 &&
+                     if( ( usCount == 2 || ( usCount > 2 &&
+                           ( funcID == HB_F_BITAND || funcID == HB_F_BITOR ||
+                             funcID == HB_F_BITXOR ) ) ) &&
                          pParms->value.asList.pExprList->ExprType == HB_ET_NUMERIC &&
                          pParms->value.asList.pExprList->pNext->ExprType == HB_ET_NUMERIC )
                      {
@@ -1914,7 +1924,7 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                      }
                      break;
                   case HB_F_BITTEST:
-                     if( usCount >= 2 &&
+                     if( usCount == 2 &&
                          pParms->value.asList.pExprList->ExprType == HB_ET_NUMERIC &&
                          pParms->value.asList.pExprList->pNext->ExprType == HB_ET_NUMERIC )
                      {
@@ -1927,7 +1937,7 @@ static HB_EXPR_FUNC( hb_compExprUseFunCall )
                      }
                      break;
                   case HB_F_BITNOT:
-                     if( usCount && pParms->value.asList.pExprList->ExprType == HB_ET_NUMERIC )
+                     if( usCount == 1 && pParms->value.asList.pExprList->ExprType == HB_ET_NUMERIC )
                      {
                         HB_MAXINT lResult = ~hb_compExprAsLongNum( pParms->value.asList.pExprList );
                         hb_compExprReduceBitFunc( pSelf, lResult, HB_FALSE, HB_COMP_PARAM );
