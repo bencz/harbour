@@ -7,6 +7,11 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 15:16 UTC-0300 Alexandre Bencz
+  * utils/hbtest/rt_str.prg
+    * updated expected StrTran() errors in HB_CLP_STRICT builds, they
+      do not have arguments
+
 2026-11-24 15:11 UTC-0300 Alexandre Bencz
   * include/hbexprb.c
     * do not keep pointer to the next element of array literal in the
