@@ -1400,21 +1400,35 @@ METHOD z CLASS NVCLASS1
           hb_CStr( ::v )
 
 
+/* without method decoration (HB_CLP_STRICT) functions implementing
+   methods of different classes cannot have the same names */
 CREATE CLASS NVCLASS2
 HIDDEN:
    VAR a init "(a2)"
    CLASS VAR b init "(b2)"
+#ifdef HB_CLS_NO_DECORATION
+   MESSAGE x METHOD nv2_x
+#else
    METHOD x
+#endif
 
 PROTECTED:
    VAR c init "(c2)"
    CLASS VAR d init "(d2)"
+#ifdef HB_CLS_NO_DECORATION
+   MESSAGE y METHOD nv2_y
+#else
    METHOD y
+#endif
 
 EXPORTED:
    VAR e init "(e2)"
    CLASS VAR f init "(f2)"
+#ifdef HB_CLS_NO_DECORATION
+   MESSAGE z METHOD nv2_z
+#else
    METHOD z
+#endif
    METHOD m2
 
 ENDCLASS
@@ -1432,7 +1446,11 @@ METHOD m2 CLASS NVCLASS2
          ::y() + "|" + ;
          ::z()
 
+#ifdef HB_CLS_NO_DECORATION
+METHOD nv2_x CLASS NVCLASS2
+#else
 METHOD x CLASS NVCLASS2
+#endif
    RETURN "NVCLASS2:X  " + ;
           hb_CStr( ::a ) + " " + ;
           hb_CStr( ::b ) + " " + ;
@@ -1442,7 +1460,11 @@ METHOD x CLASS NVCLASS2
           hb_CStr( ::f ) + " " + ;
           hb_CStr( ::v )
 
+#ifdef HB_CLS_NO_DECORATION
+METHOD nv2_y CLASS NVCLASS2
+#else
 METHOD y CLASS NVCLASS2
+#endif
    RETURN "NVCLASS2:Y  " + ;
           hb_CStr( ::a ) + " " + ;
           hb_CStr( ::b ) + " " + ;
@@ -1452,7 +1474,11 @@ METHOD y CLASS NVCLASS2
           hb_CStr( ::f ) + " " + ;
           hb_CStr( ::v )
 
+#ifdef HB_CLS_NO_DECORATION
+METHOD nv2_z CLASS NVCLASS2
+#else
 METHOD z CLASS NVCLASS2
+#endif
    RETURN "NVCLASS2:Z  " + ;
           hb_CStr( ::a ) + " " + ;
           hb_CStr( ::b ) + " " + ;
@@ -1467,18 +1493,30 @@ CREATE CLASS NVCLASS3 INHERIT NVCLASS1, NVCLASS2
 HIDDEN:
    VAR a init "(a3)"
    CLASS VAR b init "(b3)"
+#ifdef HB_CLS_NO_DECORATION
+   MESSAGE x METHOD nv3_x
+#else
    METHOD x
+#endif
    VAR v init "(HI3)"
 
 PROTECTED:
    VAR c init "(c3)"
    CLASS VAR d init "(d3)"
+#ifdef HB_CLS_NO_DECORATION
+   MESSAGE y METHOD nv3_y
+#else
    METHOD y
+#endif
 
 EXPORTED:
    VAR e init "(e3)"
    CLASS VAR f init "(f3)"
+#ifdef HB_CLS_NO_DECORATION
+   MESSAGE z METHOD nv3_z
+#else
    METHOD z
+#endif
    METHOD m3
 
 ENDCLASS
@@ -1496,7 +1534,11 @@ METHOD m3 CLASS NVCLASS3
          ::y() + "|" + ;
          ::z()
 
+#ifdef HB_CLS_NO_DECORATION
+METHOD nv3_x CLASS NVCLASS3
+#else
 METHOD x CLASS NVCLASS3
+#endif
    RETURN "NVCLASS3:X  " + ;
           hb_CStr( ::a ) + " " + ;
           hb_CStr( ::b ) + " " + ;
@@ -1506,7 +1548,11 @@ METHOD x CLASS NVCLASS3
           hb_CStr( ::f ) + " " + ;
           hb_CStr( ::v )
 
+#ifdef HB_CLS_NO_DECORATION
+METHOD nv3_y CLASS NVCLASS3
+#else
 METHOD y CLASS NVCLASS3
+#endif
    RETURN "NVCLASS3:Y  " + ;
           hb_CStr( ::a ) + " " + ;
           hb_CStr( ::b ) + " " + ;
@@ -1516,7 +1562,11 @@ METHOD y CLASS NVCLASS3
           hb_CStr( ::f ) + " " + ;
           hb_CStr( ::v )
 
+#ifdef HB_CLS_NO_DECORATION
+METHOD nv3_z CLASS NVCLASS3
+#else
 METHOD z CLASS NVCLASS3
+#endif
    RETURN "NVCLASS3:Z  " + ;
           hb_CStr( ::a ) + " " + ;
           hb_CStr( ::b ) + " " + ;

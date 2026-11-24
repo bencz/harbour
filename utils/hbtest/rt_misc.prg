@@ -1091,11 +1091,11 @@ PROCEDURE Main_MISC()
    HBTEST THDelAt( 0 )                       IS "BASE/1187/HB_HDELAT"
    HBTEST THDelAt( 1 )                       IS "1/b"
 
-   /* RESTORE FROM which fails cannot release memory variables */
+   /* RESTORE FROM which fails cannot release memory variables,
+      in HB_CLP_STRICT builds it releases them like CA-Cl*pper so
+      it cannot be tested because other tests need them */
 #ifndef HB_CLP_STRICT
    HBTEST TRestoreMissing()                  IS "C/2005"
-#else
-   HBTEST TRestoreMissing()                  IS "U/2005"
 #endif
 #endif
 
@@ -1155,6 +1155,7 @@ STATIC FUNCTION THDelAt( nPos )
 
    RETURN cResult
 
+#ifndef HB_CLP_STRICT
 STATIC FUNCTION TRestoreMissing()
 
    LOCAL cResult := "", oError
@@ -1172,6 +1173,7 @@ STATIC FUNCTION TRestoreMissing()
    __mvXRelease( "_hbtst_mem" )
 
    RETURN cResult
+#endif
 
 STATIC FUNCTION TRelCycle()
 

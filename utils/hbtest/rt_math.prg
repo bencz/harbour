@@ -261,7 +261,12 @@ PROCEDURE Main_MATH()
 #ifdef __HARBOUR__
    /* compile time optimization of Int() has to give the same results
       as runtime Int() */
+#ifndef HB_CLP_STRICT
+   /* HB_CLP_STRICT libraries are compiled by Harbour compiler built
+      without HB_CLP_STRICT (strict PP cannot compile Harbour sources),
+      which uses different precision in compile time Int() */
    HBTEST ( l := 0.7, Int( ( 0.7 + 0.1 ) * 10 ) == Int( ( l + 0.1 ) * 10 ) )            IS .T.
+#endif
    HBTEST ( l := 0.7, &( "Int( ( 0.7 + 0.1 ) * 10 )" ) == Int( ( l + 0.1 ) * 10 ) )     IS .T.
 #endif
    HBTEST Int( 5000000000 )                IS 5000000000

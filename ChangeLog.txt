@@ -7,6 +7,24 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 15:01 UTC-0300 Alexandre Bencz
+  * utils/hbtest/rt_class.prg
+    ! fixed compilation with HB_CLP_STRICT. Method functions are not
+      decorated in such mode and methods of different classes had the
+      same function names.
+
+  * utils/hbtest/rt_math.prg
+  * utils/hbtest/rt_misc.prg
+    * do not test RESTORE FROM of missing file and compile time Int() in
+      HB_CLP_STRICT mode. In strict mode RESTORE FROM releases memory
+      variables used by other tests and HB_CLP_STRICT libraries can be
+      compiled only by Harbour compiler built without HB_CLP_STRICT,
+      which uses different precision in compile time Int().
+      Note: hbtest for HB_CLP_STRICT can be build with:
+         HB_HOST_BIN=<bin dir of normal build>
+         HB_USER_CFLAGS=-DHB_CLP_STRICT HB_USER_PRGFLAGS=-DHB_CLP_STRICT
+      Some tests still fail in such mode.
+
 2026-11-24 14:57 UTC-0300 Alexandre Bencz
   * include/hbexprb.c
     ! fixed compile time replacement of hb_i18n_ngettext_noop() and
