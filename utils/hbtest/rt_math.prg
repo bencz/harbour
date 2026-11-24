@@ -661,6 +661,19 @@ PROCEDURE Main_MATH()
    HBTEST &s1.2                           IS 15
    HBTEST &s1.2 += 200                    IS 215
 
+   /* hex and binary numbers which do not fit in integer are doubles */
+   HBTEST 0x100000000 == 2 ^ 32                                  IS .T.
+   HBTEST 0x10000000000000000 == 2 ^ 64                          IS .T.
+   HBTEST 0x1FFFFFFFFFFFFFFFF == 2 ^ 65                          IS .T.
+   HBTEST -0x10000000000000000 == -( 2 ^ 64 )                    IS .T.
+   HBTEST 0b10000000000000000000000000000000000000000000000000000000000000000 == 2 ^ 64 IS .T.
+   HBTEST &( "0x10000000000000000" ) == 2 ^ 64                   IS .T.
+   HBTEST &( "0b100000000000000000000000000000000" ) == 2 ^ 32   IS .T.
+#ifdef __HB_INT64__
+   HBTEST 0xFFFFFFFFFFFFFFFF                                     IS -1
+   HBTEST &( "0xFFFFFFFFFFFFFFFF" )                              IS -1
+#endif
+
 #endif
 
 #ifdef __HARBOUR__

@@ -592,6 +592,8 @@ static HB_BOOL hb_str2number( HB_BOOL fPCode, const char * szNum, HB_SIZE nLen, 
    if( fPCode && iPos + 1 < iLen && szNum[ iPos ] == '0' &&
        ( szNum[ iPos + 1 ] == 'X' || szNum[ iPos + 1 ] == 'x' ) )
    {
+      HB_MAXUINT nVal = 0;
+
       iPos += 2;
       iWidth = HB_DEFAULT_WIDTH;
       fHex = HB_TRUE;
@@ -606,12 +608,27 @@ static HB_BOOL hb_str2number( HB_BOOL fPCode, const char * szNum, HB_SIZE nLen, 
             c -= 'a' - 10;
          else
             break;
-         *lVal = ( *lVal << 4 ) + c;
+         /* numbers which do not fit in HB_MAXUINT are converted to
+            double like decimal ones, smaller numbers keep their bits
+            so e.g. 0xFFFFFFFFFFFFFFFF is -1 when HB_MAXINT is 64-bit */
+         if( fDbl )
+            *dVal = *dVal * 16 + c;
+         else if( ( nVal >> ( sizeof( HB_MAXUINT ) * 8 - 4 ) ) != 0 )
+         {
+            *dVal = ( double ) nVal * 16 + c;
+            fDbl = HB_TRUE;
+         }
+         else
+            nVal = ( nVal << 4 ) + ( HB_MAXUINT ) c;
       }
+      if( ! fDbl )
+         *lVal = ( HB_MAXINT ) nVal;
    } /* Binary Number */
    else if( fPCode && iPos + 1 < iLen && szNum[ iPos ] == '0' &&
             ( szNum[ iPos + 1 ] == 'B' || szNum[ iPos + 1 ] == 'b' ) )
    {
+      HB_MAXUINT nVal = 0;
+
       iPos += 2;
       iWidth = HB_DEFAULT_WIDTH;
       fBin = HB_TRUE;
@@ -619,8 +636,21 @@ static HB_BOOL hb_str2number( HB_BOOL fPCode, const char * szNum, HB_SIZE nLen, 
       {
          c = szNum[ iPos ];
          if( c == '0' || c == '1' )
-            *lVal = ( *lVal << 1 ) | ( c - '0' );
+         {
+            c -= '0';
+            if( fDbl )
+               *dVal = *dVal * 2 + c;
+            else if( ( nVal >> ( sizeof( HB_MAXUINT ) * 8 - 1 ) ) != 0 )
+            {
+               *dVal = ( double ) nVal * 2 + c;
+               fDbl = HB_TRUE;
+            }
+            else
+               nVal = ( nVal << 1 ) | ( HB_MAXUINT ) c;
+         }
       }
+      if( ! fDbl )
+         *lVal = ( HB_MAXINT ) nVal;
    }
    else
    {
@@ -679,6 +709,9 @@ static HB_BOOL hb_str2number( HB_BOOL fPCode, const char * szNum, HB_SIZE nLen, 
    {
       if( fDbl )
          *dVal = -*dVal;
+      else if( fHex || fBin )
+         /* hex and binary numbers can be HB_VMLONG_MIN */
+         *lVal = ( HB_MAXINT ) ( ( HB_MAXUINT ) 0 - ( HB_MAXUINT ) *lVal );
       else
          *lVal = -*lVal;
    }
@@ -706,7 +739,7 @@ static HB_BOOL hb_str2number( HB_BOOL fPCode, const char * szNum, HB_SIZE nLen, 
    if( piWidth )
    {
       if( fHex || fBin )
-         *piWidth = iWidth;
+         *piWidth = fDbl ? HB_DBL_LENGTH( *dVal ) : iWidth;
       else
       {
          if( fPCode )

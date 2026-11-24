@@ -7,6 +7,19 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:23 UTC-0300 Alexandre Bencz
+  * src/common/hbstr.c
+    ! fixed hex and binary numbers which do not fit in HB_MAXINT, e.g.
+      0x1FFFFFFFFFFFFFFFF was -1 and 0x10000000000000001 was 1 because
+      higher digits were lost in signed integer overflow. Now such
+      numbers are converted to double like decimal ones. Numbers which
+      fit keep their bits, so 0xFFFFFFFFFFFFFFFF is still -1 when
+      HB_MAXINT is 64-bit and in builds without 64-bit integers
+      0x100000000 is 4294967296 instead of 0.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for hex and binary numbers greater than HB_MAXINT
+
 2026-11-24 13:17 UTC-0300 Alexandre Bencz
   * include/hbapirdd.h
   * include/hbusrrdd.ch
