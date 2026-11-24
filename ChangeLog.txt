@@ -7,6 +7,23 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 09:13 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed timed waits in hb_threadMutexTimedLock(),
+      hb_threadMutexTimedSubscribe() and hb_threadMutexSyncWait() in builds
+      without POSIX threads (Windows, OS2, HB_TASK_THREAD). They waited
+      only once so when the thread was woken up by notification or signal
+      sent to other threads waiting for the same mutex or when other thread
+      locked the mutex before it they returned failure before timeout,
+      e.g. hb_mutexLock( mtx, 0.5 ) or __clsSyncWait( mtx, 30 ) returned
+      .F. after few milliseconds. Now they wait in the loop until the
+      condition is true or timeout passes.
+    ! timed hb_threadMutexSyncWait() checks QUIT request like other waits
+
+  * utils/hbtest/rt_mt.prg
+    + added test for timed waits woken up by notifications for other
+      threads
+
 2026-11-24 09:07 UTC-0300 Alexandre Bencz
   * src/vm/task.c
     ! fixed hb_taskJoin() used by builds with HB_TASK_THREAD. It waited

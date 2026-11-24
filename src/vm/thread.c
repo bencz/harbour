@@ -1987,7 +1987,8 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
                struct timespec ts;
 
                hb_threadTimeInit( &ts, ulMilliSec );
-               while( pMutex->syncsignals == iSyncGen )
+               while( pMutex->syncsignals == iSyncGen &&
+                      hb_vmRequestQuery() == 0 )
                {
                   if( pthread_cond_timedwait( &pMutex->cond_w, &pMutex->mutex, &ts ) != 0 )
                      break;
@@ -1995,19 +1996,29 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
             }
 #  else
             {
-               /* TODO: on some platforms HB_COND_SIGNAL() may wake up more then
-                *       one thread so we should use while loop to check if wait
-                *       condition is true.
+               /* the thread can be woken up by notification sent to other
+                * threads waiting for this mutex so wait in the loop until
+                * the signal is received or timeout passes
                 */
+               HB_MAXUINT timer = hb_timerGet() + ulMilliSec, curr;
+
+               while( pMutex->syncsignals == iSyncGen &&
+                      hb_vmRequestQuery() == 0 )
+               {
 #     if defined( HB_TASK_THREAD )
-               hb_taskWait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
+                  hb_taskWait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
 #     elif defined( HB_COND_HARBOUR_SUPPORT )
-               _hb_thread_cond_wait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
+                  _hb_thread_cond_wait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
 #     else
-               HB_CRITICAL_UNLOCK( pMutex->mutex );
-               ( void ) HB_COND_TIMEDWAIT( pMutex->cond_w, ulMilliSec );
-               HB_CRITICAL_LOCK( pMutex->mutex );
+                  HB_CRITICAL_UNLOCK( pMutex->mutex );
+                  ( void ) HB_COND_TIMEDWAIT( pMutex->cond_w, ulMilliSec );
+                  HB_CRITICAL_LOCK( pMutex->mutex );
 #     endif
+                  curr = hb_timerGet();
+                  if( timer <= curr )
+                     break;
+                  ulMilliSec = ( HB_ULONG ) ( timer - curr );
+               }
             }
 #  endif
             pMutex->waiters--;
@@ -2190,25 +2201,33 @@ HB_BOOL hb_threadMutexTimedLock( PHB_ITEM pItem, HB_ULONG ulMilliSec )
             while( pMutex->lock_count != 0 );
             pMutex->lockers--;
 #  else
-            /* TODO: on some platforms HB_COND_SIGNAL() may wake up more then
-             *       one thread so we should use while loop to check if wait
-             *       condition is true.
+            /* the thread can be woken up when other thread locks the mutex
+             * before it so wait in the loop until the mutex is unlocked or
+             * timeout passes
              */
+            HB_MAXUINT timer = hb_timerGet() + ulMilliSec, curr;
+
+            pMutex->lockers++;
+            do
+            {
 #     if defined( HB_TASK_THREAD )
-            pMutex->lockers++;
-            hb_taskWait( &pMutex->cond_l, &pMutex->mutex, ulMilliSec );
-            pMutex->lockers--;
+               hb_taskWait( &pMutex->cond_l, &pMutex->mutex, ulMilliSec );
 #     elif defined( HB_COND_HARBOUR_SUPPORT )
-            pMutex->lockers++;
-            _hb_thread_cond_wait( &pMutex->cond_l, &pMutex->mutex, ulMilliSec );
-            pMutex->lockers--;
+               _hb_thread_cond_wait( &pMutex->cond_l, &pMutex->mutex, ulMilliSec );
 #     else
-            pMutex->lockers++;
-            HB_CRITICAL_UNLOCK( pMutex->mutex );
-            ( void ) HB_COND_TIMEDWAIT( pMutex->cond_l, ulMilliSec );
-            HB_CRITICAL_LOCK( pMutex->mutex );
-            pMutex->lockers--;
+               HB_CRITICAL_UNLOCK( pMutex->mutex );
+               ( void ) HB_COND_TIMEDWAIT( pMutex->cond_l, ulMilliSec );
+               HB_CRITICAL_LOCK( pMutex->mutex );
 #     endif
+               if( pMutex->lock_count == 0 )
+                  break;
+               curr = hb_timerGet();
+               if( timer <= curr )
+                  break;
+               ulMilliSec = ( HB_ULONG ) ( timer - curr );
+            }
+            while( pMutex->lock_count != 0 );
+            pMutex->lockers--;
 #  endif
          }
          if( pMutex->lock_count == 0 )
@@ -2540,19 +2559,29 @@ PHB_ITEM hb_threadMutexTimedSubscribe( PHB_ITEM pItem, HB_ULONG ulMilliSec, HB_B
          }
 #  else
          {
-            /* TODO: on some platforms HB_COND_SIGNAL() may wake up more then
-             *       one thread so we should use while loop to check if wait
-             *       condition is true.
+            /* the thread can be woken up by notification or signal sent
+             * to other threads waiting for this mutex so wait in the loop
+             * until the condition is true or timeout passes
              */
+            HB_MAXUINT timer = hb_timerGet() + ulMilliSec, curr;
+
+            while( ( ! pMutex->events || hb_arrayLen( pMutex->events ) == 0 ) &&
+                   hb_vmRequestQuery() == 0 )
+            {
 #     if defined( HB_TASK_THREAD )
-            hb_taskWait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
+               hb_taskWait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
 #     elif defined( HB_COND_HARBOUR_SUPPORT )
-            _hb_thread_cond_wait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
+               _hb_thread_cond_wait( &pMutex->cond_w, &pMutex->mutex, ulMilliSec );
 #     else
-            HB_CRITICAL_UNLOCK( pMutex->mutex );
-            ( void ) HB_COND_TIMEDWAIT( pMutex->cond_w, ulMilliSec );
-            HB_CRITICAL_LOCK( pMutex->mutex );
+               HB_CRITICAL_UNLOCK( pMutex->mutex );
+               ( void ) HB_COND_TIMEDWAIT( pMutex->cond_w, ulMilliSec );
+               HB_CRITICAL_LOCK( pMutex->mutex );
 #     endif
+               curr = hb_timerGet();
+               if( timer <= curr )
+                  break;
+               ulMilliSec = ( HB_ULONG ) ( timer - curr );
+            }
          }
 #  endif
          pMutex->waiters--;

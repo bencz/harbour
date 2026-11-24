@@ -68,6 +68,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES4()              IS "0/.T./1/2"
       HBTEST DO_MTTES5()              IS "2000/2001000"
       HBTEST DO_MTTES6()              IS ".T./ok"
+      HBTEST DO_MTTES7()              IS ".F./.T./.T./.T."
    ENDIF
 #endif
 
@@ -279,6 +280,71 @@ STATIC PROCEDURE thNotifyLater( mtx )
    hb_mutexNotify( mtx, "ok" )
 
    RETURN
+
+/* timed waits cannot finish before timeout when they are woken up by
+   notifications or signals sent to other threads waiting for the mutex */
+STATIC FUNCTION DO_MTTES7()
+
+   LOCAL mtx, thSync, thSub, aRes, thLock, nStart, lLock
+
+   mtx := hb_mutexCreate()
+   thSync := hb_threadStart( @thSyncTimed(), mtx )
+   hb_idleSleep( 0.05 )
+   hb_mutexNotify( mtx, 1 )
+   hb_threadJoin( thSync, @aRes )
+
+   mtx := hb_mutexCreate()
+   thSync := hb_threadStart( @thSyncTimed(), mtx )
+   thSub := hb_threadStart( @thSubTimed2(), mtx )
+   hb_idleSleep( 0.05 )
+   __clsSyncSignal( mtx )
+   hb_threadJoin( thSync )
+   hb_threadJoin( thSub, @thSub )
+
+   /* the mutex is unlocked and locked again by other thread */
+   mtx := hb_mutexCreate()
+   thLock := hb_threadStart( @thLockAgain(), mtx )
+   hb_idleSleep( 0.05 )
+   nStart := hb_MilliSeconds()
+   IF ( lLock := hb_mutexLock( mtx, 0.3 ) )
+      hb_mutexUnlock( mtx )
+   ENDIF
+   lLock := lLock .OR. hb_MilliSeconds() - nStart >= 250
+   hb_threadJoin( thLock )
+
+   RETURN hb_ValToStr( aRes[ 1 ] ) + "/" + hb_ValToStr( aRes[ 2 ] >= 250 ) + "/" + ;
+          hb_ValToStr( thSub >= 250 ) + "/" + hb_ValToStr( lLock )
+
+STATIC PROCEDURE thLockAgain( mtx )
+
+   LOCAL nEnd := hb_MilliSeconds() + 400
+
+   hb_mutexLock( mtx )
+   DO WHILE hb_MilliSeconds() < nEnd
+      hb_idleSleep( 0.02 )
+      hb_mutexUnlock( mtx )
+      hb_mutexLock( mtx )
+   ENDDO
+   hb_mutexUnlock( mtx )
+
+   RETURN
+
+STATIC FUNCTION thSyncTimed( mtx )
+
+   LOCAL nStart := hb_MilliSeconds(), lResult
+
+   /* timeout is in 1/100 of second (Xbase++ compatible) */
+   lResult := __clsSyncWait( mtx, 30 )
+
+   RETURN { lResult, hb_MilliSeconds() - nStart }
+
+STATIC FUNCTION thSubTimed2( mtx )
+
+   LOCAL nStart := hb_MilliSeconds()
+
+   hb_mutexSubscribe( mtx, 0.3 )
+
+   RETURN hb_MilliSeconds() - nStart
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 
