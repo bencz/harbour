@@ -2229,15 +2229,59 @@ HB_BOOL hb_compExprReduceBCHAR( PHB_EXPR pSelf, HB_COMP_DECL )
    return HB_FALSE;
 }
 
+/* check if all elements of array or hash literal are constant values,
+ * so they can be removed by compile time optimization without changing
+ * the program behavior, i.e. there are no function calls, assignments,
+ * variables (which may not exist) or other expressions which may have
+ * side effects or generate runtime errors
+ */
+static HB_BOOL hb_compExprIsConstList( PHB_EXPR pExpr )
+{
+   for( pExpr = pExpr->value.asList.pExprList; pExpr; pExpr = pExpr->pNext )
+   {
+      switch( pExpr->ExprType )
+      {
+         case HB_ET_NIL:
+         case HB_ET_NUMERIC:
+         case HB_ET_DATE:
+         case HB_ET_TIMESTAMP:
+         case HB_ET_STRING:
+         case HB_ET_LOGICAL:
+            break;
+
+         case HB_ET_CODEBLOCK:
+            /* codeblocks with early macro substitution, i.e. {|| &var },
+               evaluate macros when they are created */
+            if( pExpr->value.asCodeblock.flags & HB_BLOCK_MACROVAR )
+               return HB_FALSE;
+            break;
+
+         case HB_ET_ARRAY:
+         case HB_ET_HASH:
+            if( ! hb_compExprIsConstList( pExpr ) )
+               return HB_FALSE;
+            break;
+
+         default:
+            return HB_FALSE;
+      }
+   }
+   return HB_TRUE;
+}
+
 HB_BOOL hb_compExprReduceLEN( PHB_EXPR pSelf, HB_COMP_DECL )
 {
    PHB_EXPR pParms = pSelf->value.asFunCall.pParms;
    PHB_EXPR pArg = pParms->value.asList.pExprList;
 
-   /* FIXME: do not optimize when array/hash args have user expressions */
+   /* NOTE: length of hash literal is optimized only when it's empty
+    *       because it may contain duplicated keys, e.g. { 1 => 1, 1.0 => 2 }
+    *       and comparison of string keys depends on hash flags and
+    *       codepage used at runtime.
+    */
    if( ( pArg->ExprType == HB_ET_STRING && ! HB_SUPPORT_USERCP ) ||
-       pArg->ExprType == HB_ET_ARRAY ||
-       pArg->ExprType == HB_ET_HASH )
+       ( pArg->ExprType == HB_ET_ARRAY && hb_compExprIsConstList( pArg ) ) ||
+       ( pArg->ExprType == HB_ET_HASH && pArg->nLength == 0 ) )
    {
       PHB_EXPR pExpr = hb_compExprNewLong( pArg->ExprType == HB_ET_HASH ?
                           pArg->nLength >> 1 : pArg->nLength, HB_COMP_PARAM );
@@ -2265,8 +2309,10 @@ HB_BOOL hb_compExprReduceEMPTY( PHB_EXPR pSelf, HB_COMP_DECL )
 
       case HB_ET_ARRAY:
       case HB_ET_HASH:
-         /* FIXME: do not optimize when array/hash args have user expressions */
-         fResult = pArg->nLength == 0;
+         if( hb_compExprIsConstList( pArg ) )
+            fResult = pArg->nLength == 0;
+         else
+            fReduced = HB_FALSE;
          break;
 
       case HB_ET_NUMERIC:
@@ -2294,6 +2340,10 @@ HB_BOOL hb_compExprReduceEMPTY( PHB_EXPR pSelf, HB_COMP_DECL )
          break;
 
       case HB_ET_CODEBLOCK:
+         /* codeblocks with early macro substitution, i.e. {|| &var },
+            evaluate macros when they are created */
+         if( pArg->value.asCodeblock.flags & HB_BLOCK_MACROVAR )
+            fReduced = HB_FALSE;
          break;
 
       /* case HB_ET_FUNREF: */

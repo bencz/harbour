@@ -400,6 +400,16 @@ PROCEDURE Main_ARRAY()
 #ifdef __HARBOUR__
    /* deeply nested arrays should not exhaust C stack in GC and release code */
    HBTEST TADeep( 500000 )                IS "500000/1/2"
+
+   /* compile time optimization of Len() and Empty() cannot remove
+      expressions with side effects and cannot count duplicated hash keys */
+   HBTEST TALenCall()                     IS "2/2"
+   HBTEST TAEmptyCall()                   IS "F/1"
+   HBTEST Len( { 1 => "a", 1.0 => "b", 1.5 => "c" } ) IS 2
+   HBTEST Len( { 1, "a", { 2, 3 }, {|| NIL }, NIL } ) IS 5
+   HBTEST Len( { => } )                   IS 0
+   HBTEST Empty( { { 1 } } )              IS .F.
+   HBTEST TAEarlyMacro()                  IS "E 14 BASE 1003 Variable does not exist (CTANOTEXIST) OS:0 #:1 F:R"
 #endif
 
    RETURN
@@ -460,6 +470,34 @@ STATIC FUNCTION TADeep( nDepth )
    hb_gcAll( .T. )
 
    RETURN hb_ntos( nCount ) + "/" + hb_ntos( aShared[ 1 ] ) + "/" + hb_ntos( Len( aShared ) )
+
+#endif
+
+#ifdef __HARBOUR__
+
+STATIC FUNCTION TALenCall()
+
+   LOCAL nCalls := 0
+   LOCAL nLen := Len( { TAIncCall( @nCalls ), TAIncCall( @nCalls ) } )
+
+   RETURN hb_ntos( nLen ) + "/" + hb_ntos( nCalls )
+
+STATIC FUNCTION TAEmptyCall()
+
+   LOCAL nCalls := 0
+   LOCAL lEmpty := Empty( { TAIncCall( @nCalls ) } )
+
+   RETURN iif( lEmpty, "T", "F" ) + "/" + hb_ntos( nCalls )
+
+STATIC FUNCTION TAEarlyMacro()
+
+   MEMVAR cTANotExist
+
+   RETURN Len( { {|| &cTANotExist } } ) + Len( { Empty( {|| &cTANotExist } ) } )
+
+STATIC FUNCTION TAIncCall( nCalls )
+
+   RETURN ++nCalls
 
 #endif
 

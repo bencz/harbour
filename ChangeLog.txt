@@ -7,6 +7,21 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 06:58 UTC-0300 Alexandre Bencz
+  * src/common/expropt2.c
+    ! fixed compile time optimization of Len() and Empty() used with array
+      and hash literals by compiler and macro compiler. Elements of
+      literals were removed even if they had side effects, e.g.
+      Len( { f() } ) did not call f(), and Len() of hash literals counted
+      duplicated keys, e.g. Len( { 1 => "a", 1.0 => "b" } ) gave 2.
+      Now array literals are optimized only when all elements are
+      constant values and Len() of hash literals only when they are empty.
+    ! do not optimize Empty() of codeblocks with macros, they may be
+      evaluated when codeblock is created, e.g. Empty( {|| &var } )
+
+  * utils/hbtest/rt_array.prg
+    + added tests for compile time optimization of Len() and Empty()
+
 2026-11-24 06:50 UTC-0300 Alexandre Bencz
   * include/hbexprb.c
     ! fixed evaluation order in var := var <op> <exp> expressions when <exp>
