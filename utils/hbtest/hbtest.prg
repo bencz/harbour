@@ -177,8 +177,9 @@ PROCEDURE Main( cPar1, cPar2, cPar3 )
 /* NOTE: These should always be called last, since they can mess up the test
          environment.
 
-         Right now the failing __MRestore() will clear all memory variables,
-         which is absolutely normal otherwise. */
+         In CA-Cl*pper the failing __MRestore() will clear all memory
+         variables, which is absolutely normal otherwise. Harbour clears
+         them only when the file is open. */
 
 STATIC PROCEDURE Main_LAST()
 
@@ -191,7 +192,15 @@ STATIC PROCEDURE Main_LAST()
    HBTEST __MSave()                           IS "E 1 BASE 2008 Argument error (__MSAVE) OS:0 #:0 "
    HBTEST __MRestore( "$NOTHERE.MEM", .F. )   IS "E 21 BASE 2005 Open error <$NOTHERE.MEM> OS:2 #:1 F:DR"
 #endif
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
+   HBTEST MemVarBlock( "mcString" )           IS "{||...}"
+#else
    HBTEST MemVarBlock( "mcString" )           IS NIL
+#endif
+#else
+   HBTEST MemVarBlock( "mcString" )           IS NIL
+#endif
 #ifndef __XPP__
    HBTEST __MSave( BADFNAME(), "*", .T. )     IS "E 20 BASE 2006 Create error <" + BADFNAME() + "> OS:2 #:1 F:DR"
 #endif

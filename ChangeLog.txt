@@ -7,6 +7,18 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 12:50 UTC-0300 Alexandre Bencz
+  * src/vm/memvars.c
+    ! RESTORE FROM (__MRestore()) without ADDITIVE clears memory variables
+      when the .mem file is open, so they are not lost when the file cannot
+      be open. CA-Cl*pper clears them before and this behavior is kept in
+      builds with HB_CLP_STRICT.
+
+  * utils/hbtest/hbtest.prg
+  * utils/hbtest/rt_misc.prg
+    * updated test for failing __MRestore()
+    + added test for RESTORE FROM which fails
+
 2026-11-24 12:20 UTC-0300 Alexandre Bencz
   * include/hbcrypto.h
   * src/rtl/sha2.c

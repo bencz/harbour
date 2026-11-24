@@ -1067,11 +1067,36 @@ PROCEDURE Main_MISC()
 
    /* relations which would create cycle are not allowed */
    HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
+
+   /* RESTORE FROM which fails cannot release memory variables */
+#ifndef HB_CLP_STRICT
+   HBTEST TRestoreMissing()                  IS "C/2005"
+#else
+   HBTEST TRestoreMissing()                  IS "U/2005"
+#endif
 #endif
 
    RETURN
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION TRestoreMissing()
+
+   LOCAL cResult := "", oError
+
+   MEMVAR _hbtst_mem
+   PUBLIC _hbtst_mem := "kept"
+
+   FErase( "_hbnofil.mem" )
+   BEGIN SEQUENCE WITH {| e | Break( e ) }
+      RESTORE FROM _hbnofil
+   RECOVER USING oError
+      cResult := "/" + hb_ntos( oError:subCode )
+   END SEQUENCE
+   cResult := Type( "_hbtst_mem" ) + cResult
+   __mvXRelease( "_hbtst_mem" )
+
+   RETURN cResult
 
 STATIC FUNCTION TRelCycle()
 

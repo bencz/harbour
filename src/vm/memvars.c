@@ -1578,10 +1578,12 @@ HB_FUNC( __MVRESTORE )
 
       HB_BOOL bAdditive = hb_parl( 2 );
 
-      /* Clear all memory variables if not ADDITIVE */
-
+#ifdef HB_CLP_STRICT
+      /* Clear all memory variables if not ADDITIVE, Clipper does it
+         before the file is open so they are lost when it fails */
       if( ! bAdditive )
          hb_memvarsClear( HB_FALSE );
+#endif
 
       /* Open .mem file */
       do
@@ -1605,6 +1607,13 @@ HB_FUNC( __MVRESTORE )
          HB_BYTE buffer[ HB_MEM_REC_LEN ];
          const char * pszMask;
          PHB_ITEM pItem = NULL;
+
+#ifndef HB_CLP_STRICT
+         /* Clear all memory variables if not ADDITIVE, it's done when
+            the file is open so variables are not lost when it fails */
+         if( ! bAdditive )
+            hb_memvarsClear( HB_FALSE );
+#endif
 
 #ifdef HB_CLP_STRICT
          pszMask = "*";
