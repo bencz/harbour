@@ -229,7 +229,10 @@ void hb_dateDecode( long lJulian, int * piYear, int * piMonth, int * piDay )
 {
    HB_TRACE( HB_TR_DEBUG, ( "hb_dateDecode(%ld, %p, %p, %p)", lJulian, ( void * ) piYear, ( void * ) piMonth, ( void * ) piDay ) );
 
-   if( lJulian >= HB_STR_DATE_BASE )
+   /* bigger julian dates, e.g. saturated result of Date() + 1e20, are
+      decoded as invalid date (0, 0, 0) like dates before the base date,
+      intermediate values of calculations below would overflow for them */
+   if( lJulian >= HB_STR_DATE_BASE && lJulian <= INT32_MAX )
    {
       /* intermediate values do not fit in 32-bit integers, without 64-bit
        * integers doubles are used, all values fit in their mantissa and
@@ -375,7 +378,7 @@ HB_BOOL hb_dateDecWeek( long lJulian, int * piYear, int * piWeek, int * piDay )
       int iMonth, iDay;
 
       *piDay = ( int ) ( lJulian % 7 ) + 1;
-      lJulian += 4 - *piDay;
+      lJulian = hb_dateJulianAdd( lJulian, 4 - *piDay );
       hb_dateDecode( lJulian, piYear, &iMonth, &iDay );
       *piWeek = ( lJulian - hb_dateEncode( *piYear, 1, 1 ) ) / 7 + 1;
 
@@ -968,6 +971,27 @@ double hb_timeStampPackDT( long lJulian, long lMilliSec )
           ( double ) lMilliSec / HB_MILLISECS_PER_DAY;
 }
 
+/* add or subtract number of days to/from julian date, results out of
+   the range of long are saturated because signed integer overflow is
+   undefined behavior in C, it can happen only for invalid dates, e.g.
+   Date() + 1e20. The conditions are written so they cannot overflow for
+   any size of long and HB_MAXINT */
+long hb_dateJulianAdd( long lJulian, HB_MAXINT nDays )
+{
+   if( nDays > 0 ? lJulian > ( HB_MAXINT ) LONG_MAX - nDays :
+                   lJulian < ( HB_MAXINT ) LONG_MIN - nDays )
+      return nDays > 0 ? LONG_MAX : LONG_MIN;
+   return ( long ) ( lJulian + nDays );
+}
+
+long hb_dateJulianSub( long lJulian, HB_MAXINT nDays )
+{
+   if( nDays < 0 ? lJulian > ( HB_MAXINT ) LONG_MAX + nDays :
+                   lJulian < ( HB_MAXINT ) LONG_MIN + nDays )
+      return nDays < 0 ? LONG_MAX : LONG_MIN;
+   return ( long ) ( lJulian - nDays );
+}
+
 void hb_timeStampUnpackDT( double dTimeStamp,
                            long * plJulian, long * plMilliSec )
 {
@@ -978,14 +1002,17 @@ void hb_timeStampUnpackDT( double dTimeStamp,
       double dJulian, dTime;
 
       dTime = modf( dTimeStamp + 0.5 / HB_MILLISECS_PER_DAY, &dJulian );
+      dTime *= HB_MILLISECS_PER_DAY;
+      /* HB_CAST_LONG() saturates values out of range and converts NaN to 0 */
       if( plJulian )
-         *plJulian = ( long ) dJulian;
+         *plJulian = HB_CAST_LONG( dJulian );
       if( plMilliSec )
-         *plMilliSec = ( long ) ( dTime * HB_MILLISECS_PER_DAY );
+         *plMilliSec = HB_CAST_LONG( dTime );
 #else
-      HB_LONGLONG llMilliSec = ( HB_LONGLONG ) ( dTimeStamp * HB_MILLISECS_PER_DAY + 0.5 );
+      double dMilliSec = dTimeStamp * HB_MILLISECS_PER_DAY + 0.5;
+      HB_LONGLONG llMilliSec = HB_CAST_LONGLONG( dMilliSec );
       if( plJulian )
-         *plJulian = ( long ) ( llMilliSec / HB_MILLISECS_PER_DAY );
+         *plJulian = hb_dateJulianAdd( 0, llMilliSec / HB_MILLISECS_PER_DAY );
       if( plMilliSec )
          *plMilliSec = ( long ) ( llMilliSec % HB_MILLISECS_PER_DAY );
 #endif

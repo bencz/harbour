@@ -3155,7 +3155,8 @@ static void hb_vmAddInt( PHB_ITEM pResult, HB_LONG lAdd )
    else if( HB_IS_DATETIME( pResult ) )
    {
       pResult->type &= ~HB_IT_DEFAULT;
-      pResult->item.asDateTime.julian += lAdd;
+      pResult->item.asDateTime.julian =
+               hb_dateJulianAdd( pResult->item.asDateTime.julian, lAdd );
    }
    else if( hb_objHasOperator( pResult, HB_OO_OP_PLUS ) )
    {
@@ -3264,16 +3265,16 @@ static void hb_vmTimeStampPut( PHB_ITEM pItem, long lJulian, long lMilliSec )
       if( lMilliSec <= -HB_MILLISECS_PER_DAY )
       {
          lMilliSec += HB_MILLISECS_PER_DAY;
-         --lJulian;
+         lJulian = hb_dateJulianSub( lJulian, 1 );
       }
       else if( lMilliSec > 0 )
       {
          lMilliSec -= HB_MILLISECS_PER_DAY;
-         ++lJulian;
+         lJulian = hb_dateJulianAdd( lJulian, 1 );
          if( lMilliSec > 0 )
          {
             lMilliSec -= HB_MILLISECS_PER_DAY;
-            ++lJulian;
+            lJulian = hb_dateJulianAdd( lJulian, 1 );
          }
       }
    }
@@ -3282,16 +3283,16 @@ static void hb_vmTimeStampPut( PHB_ITEM pItem, long lJulian, long lMilliSec )
       if( lMilliSec >= HB_MILLISECS_PER_DAY )
       {
          lMilliSec -= HB_MILLISECS_PER_DAY;
-         ++lJulian;
+         lJulian = hb_dateJulianAdd( lJulian, 1 );
       }
       else if( lMilliSec < 0 )
       {
          lMilliSec += HB_MILLISECS_PER_DAY;
-         --lJulian;
+         lJulian = hb_dateJulianSub( lJulian, 1 );
          if( lMilliSec < 0 )
          {
             lMilliSec += HB_MILLISECS_PER_DAY;
-            --lJulian;
+            lJulian = hb_dateJulianSub( lJulian, 1 );
          }
       }
    }
@@ -3307,7 +3308,7 @@ static void hb_vmTimeStampAdd( PHB_ITEM pResult, PHB_ITEM pItem, double dValue )
 
    hb_timeStampUnpackDT( dValue, &lJulian, &lMilliSec );
 
-   lJulian += pItem->item.asDateTime.julian;
+   lJulian = hb_dateJulianAdd( pItem->item.asDateTime.julian, lJulian );
    lMilliSec += pItem->item.asDateTime.time;
 
    hb_vmTimeStampPut( pResult, lJulian, lMilliSec );
@@ -3380,42 +3381,44 @@ static void hb_vmPlus( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
    else if( HB_IS_DATETIME( pItem1 ) && HB_IS_DATETIME( pItem2 ) )
    {
       if( HB_IS_TIMESTAMP( pItem1 ) || HB_IS_TIMESTAMP( pItem2 ) )
-         hb_vmTimeStampPut( pResult, pItem1->item.asDateTime.julian +
-                                     pItem2->item.asDateTime.julian,
+         hb_vmTimeStampPut( pResult, hb_dateJulianAdd( pItem1->item.asDateTime.julian,
+                                                       pItem2->item.asDateTime.julian ),
                                      pItem1->item.asDateTime.time +
                                      pItem2->item.asDateTime.time );
       else
          /* NOTE: This is not a bug. CA-Cl*pper does exactly that for DATEs. */
-         hb_itemPutDL( pResult, pItem1->item.asDateTime.julian +
-                                pItem2->item.asDateTime.julian );
+         hb_itemPutDL( pResult, hb_dateJulianAdd( pItem1->item.asDateTime.julian,
+                                                  pItem2->item.asDateTime.julian ) );
    }
    else if( HB_IS_DATETIME( pItem1 ) && HB_IS_NUMERIC( pItem2 ) )
    {
       if( HB_IS_TIMESTAMP( pItem1 ) )
       {
          if( HB_IS_NUMINT( pItem2 ) )
-            hb_vmTimeStampPut( pResult, pItem1->item.asDateTime.julian +
-                                        ( long ) HB_ITEM_GET_NUMINTRAW( pItem2 ),
+            hb_vmTimeStampPut( pResult, hb_dateJulianAdd( pItem1->item.asDateTime.julian,
+                                                          HB_ITEM_GET_NUMINTRAW( pItem2 ) ),
                                         pItem1->item.asDateTime.time );
          else
             hb_vmTimeStampAdd( pResult, pItem1, pItem2->item.asDouble.value );
       }
       else
-         hb_itemPutDL( pResult, hb_itemGetDL( pItem1 ) + hb_itemGetNL( pItem2 ) );
+         hb_itemPutDL( pResult, hb_dateJulianAdd( hb_itemGetDL( pItem1 ),
+                                                  hb_itemGetNInt( pItem2 ) ) );
    }
    else if( HB_IS_NUMERIC( pItem1 ) && HB_IS_DATETIME( pItem2 ) )
    {
       if( HB_IS_TIMESTAMP( pItem2 ) )
       {
          if( HB_IS_NUMINT( pItem1 ) )
-            hb_vmTimeStampPut( pResult, ( long ) HB_ITEM_GET_NUMINTRAW( pItem1 ) +
-                                        pItem2->item.asDateTime.julian,
+            hb_vmTimeStampPut( pResult, hb_dateJulianAdd( pItem2->item.asDateTime.julian,
+                                                          HB_ITEM_GET_NUMINTRAW( pItem1 ) ),
                                         pItem2->item.asDateTime.time );
          else
             hb_vmTimeStampAdd( pResult, pItem2, pItem1->item.asDouble.value );
       }
       else
-         hb_itemPutDL( pResult, hb_itemGetNL( pItem1 ) + hb_itemGetDL( pItem2 ) );
+         hb_itemPutDL( pResult, hb_dateJulianAdd( hb_itemGetDL( pItem2 ),
+                                                  hb_itemGetNInt( pItem1 ) ) );
    }
    else if( ! hb_objOperatorCall( HB_OO_OP_PLUS, pResult, pItem1, pItem2, NULL ) )
    {
@@ -3467,8 +3470,8 @@ static void hb_vmMinus( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
    {
       long lTime = pItem1->item.asDateTime.time -
                    pItem2->item.asDateTime.time,
-           lJulian = pItem1->item.asDateTime.julian -
-                     pItem2->item.asDateTime.julian;
+           lJulian = hb_dateJulianSub( pItem1->item.asDateTime.julian,
+                                       pItem2->item.asDateTime.julian );
       if( lTime != 0 )
          hb_itemPutNDDec( pResult, hb_timeStampPackDT( lJulian, lTime ), HB_TIMEDIFF_DEC );
       else
@@ -3483,14 +3486,15 @@ static void hb_vmMinus( PHB_ITEM pResult, PHB_ITEM pItem1, PHB_ITEM pItem2 )
       if( HB_IS_TIMESTAMP( pItem1 ) )
       {
          if( HB_IS_NUMINT( pItem2 ) )
-            hb_vmTimeStampPut( pResult, pItem1->item.asDateTime.julian -
-                                        ( long ) HB_ITEM_GET_NUMINTRAW( pItem2 ),
+            hb_vmTimeStampPut( pResult, hb_dateJulianSub( pItem1->item.asDateTime.julian,
+                                                          HB_ITEM_GET_NUMINTRAW( pItem2 ) ),
                                         pItem1->item.asDateTime.time );
          else
             hb_vmTimeStampAdd( pResult, pItem1, - pItem2->item.asDouble.value );
       }
       else
-         hb_itemPutDL( pResult, hb_itemGetDL( pItem1 ) - hb_itemGetNL( pItem2 ) );
+         hb_itemPutDL( pResult, hb_dateJulianSub( hb_itemGetDL( pItem1 ),
+                                                  hb_itemGetNInt( pItem2 ) ) );
    }
    else if( HB_IS_STRING( pItem1 ) && HB_IS_STRING( pItem2 ) )
    {
@@ -3850,7 +3854,8 @@ static void hb_vmInc( PHB_ITEM pItem )
    else if( HB_IS_DATETIME( pItem ) )
    {
       pItem->type &= ~HB_IT_DEFAULT;
-      pItem->item.asDateTime.julian++;
+      pItem->item.asDateTime.julian =
+               hb_dateJulianAdd( pItem->item.asDateTime.julian, 1 );
    }
    else if( ! hb_objOperatorCall( HB_OO_OP_INC, pItem, pItem, NULL, NULL ) )
    {
@@ -3915,7 +3920,8 @@ static void hb_vmDec( PHB_ITEM pItem )
    else if( HB_IS_DATETIME( pItem ) )
    {
       pItem->type &= ~HB_IT_DEFAULT;
-      pItem->item.asDateTime.julian--;
+      pItem->item.asDateTime.julian =
+               hb_dateJulianSub( pItem->item.asDateTime.julian, 1 );
    }
    else if( ! hb_objOperatorCall( HB_OO_OP_DEC, pItem, pItem, NULL, NULL ) )
    {

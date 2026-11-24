@@ -2379,7 +2379,9 @@ hb_dateEncStr
 hb_dateEncWeek
 hb_dateEncode
 hb_dateFormat
+hb_dateJulianAdd
 hb_dateJulianDOW
+hb_dateJulianSub
 hb_dateMilliSeconds
 hb_dateSeconds
 hb_dateStrGet

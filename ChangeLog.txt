@@ -7,6 +7,36 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 14:02 UTC-0300 Alexandre Bencz
+  * include/hbdate.h
+  * src/common/hbdate.c
+  * src/harbour.def
+    + added hb_dateJulianAdd() and hb_dateJulianSub() which add or
+      subtract number of days to/from julian date and saturate results
+      out of the range of long
+    ! fixed overflow in hb_timeStampUnpackDT() for numbers out of range
+      and NaN
+    ! hb_dateDecode() decodes julian dates greater than INT32_MAX as
+      invalid date, its calculations overflowed for such values
+    ! fixed overflow in hb_dateDecWeek()
+
+  * src/vm/hvm.c
+    ! fixed date and timestamp arithmetic with results out of the range
+      of long, e.g. Date() + 1e20 or Date() + 9e18. Such operations were
+      signed integer overflow and gave random dates, now results are
+      saturated. Integer numbers added to timestamps are not truncated
+      to long on platforms where long is 32-bit.
+
+  * src/common/expropt2.c
+    ! use the same arithmetic in compile time optimization of dates and
+      timestamps
+    ! do not optimize date and timestamp expressions which results do
+      not fit in PCODE (32-bit julian dates), they were truncated, e.g.
+      0d20200101 + 1e20 was different than at runtime
+
+  * utils/hbtest/rt_date.prg
+    + added tests for date arithmetic out of range
+
 2026-11-24 13:47 UTC-0300 Alexandre Bencz
   * include/hbexprb.c
     ! fixed compile time optimization of literal array with index used

@@ -460,7 +460,21 @@ PHB_EXPR hb_compExprReducePower( PHB_EXPR pSelf, HB_COMP_DECL )
    return pSelf;
 }
 
-static void hb_compExprReduceTimeStampPut( PHB_EXPR pExpr, long lJulian, long lMilliSec )
+/* dates and timestamps are stored in PCODE as 32-bit values so results
+   out of this range are not reduced, they are calculated at runtime */
+static HB_BOOL hb_compExprReduceDatePut( PHB_EXPR pExpr, long lJulian )
+{
+   if( ! HB_LIM_INT32( lJulian ) )
+      return HB_FALSE;
+
+   pExpr->value.asDate.lDate = lJulian;
+   pExpr->value.asDate.lTime = 0;
+   pExpr->ExprType = HB_ET_DATE;
+   pExpr->ValType  = HB_EV_DATE;
+   return HB_TRUE;
+}
+
+static HB_BOOL hb_compExprReduceTimeStampPut( PHB_EXPR pExpr, long lJulian, long lMilliSec )
 {
    /* timestamp normalization */
    if( lJulian < 0 )
@@ -468,16 +482,16 @@ static void hb_compExprReduceTimeStampPut( PHB_EXPR pExpr, long lJulian, long lM
       if( lMilliSec <= -HB_MILLISECS_PER_DAY )
       {
          lMilliSec += HB_MILLISECS_PER_DAY;
-         --lJulian;
+         lJulian = hb_dateJulianSub( lJulian, 1 );
       }
       else if( lMilliSec > 0 )
       {
          lMilliSec -= HB_MILLISECS_PER_DAY;
-         ++lJulian;
+         lJulian = hb_dateJulianAdd( lJulian, 1 );
          if( lMilliSec > 0 )
          {
             lMilliSec -= HB_MILLISECS_PER_DAY;
-            ++lJulian;
+            lJulian = hb_dateJulianAdd( lJulian, 1 );
          }
       }
    }
@@ -486,36 +500,40 @@ static void hb_compExprReduceTimeStampPut( PHB_EXPR pExpr, long lJulian, long lM
       if( lMilliSec >= HB_MILLISECS_PER_DAY )
       {
          lMilliSec -= HB_MILLISECS_PER_DAY;
-         ++lJulian;
+         lJulian = hb_dateJulianAdd( lJulian, 1 );
       }
       else if( lMilliSec < 0 )
       {
          lMilliSec += HB_MILLISECS_PER_DAY;
-         --lJulian;
+         lJulian = hb_dateJulianSub( lJulian, 1 );
          if( lMilliSec < 0 )
          {
             lMilliSec += HB_MILLISECS_PER_DAY;
-            --lJulian;
+            lJulian = hb_dateJulianSub( lJulian, 1 );
          }
       }
    }
+
+   if( ! HB_LIM_INT32( lJulian ) )
+      return HB_FALSE;
 
    pExpr->value.asDate.lDate = lJulian;
    pExpr->value.asDate.lTime = lMilliSec;
    pExpr->ExprType = HB_ET_TIMESTAMP;
    pExpr->ValType  = HB_EV_TIMESTAMP;
+   return HB_TRUE;
 }
 
-static void hb_compExprReduceTimeStampAdd( PHB_EXPR pExpr, PHB_EXPR pTimeStamp, double dValue )
+static HB_BOOL hb_compExprReduceTimeStampAdd( PHB_EXPR pExpr, PHB_EXPR pTimeStamp, double dValue )
 {
    long lJulian, lMilliSec;
 
    hb_timeStampUnpackDT( dValue, &lJulian, &lMilliSec );
 
-   lJulian   += pTimeStamp->value.asDate.lDate;
+   lJulian   = hb_dateJulianAdd( pTimeStamp->value.asDate.lDate, lJulian );
    lMilliSec += pTimeStamp->value.asDate.lTime;
 
-   hb_compExprReduceTimeStampPut( pExpr, lJulian, lMilliSec );
+   return hb_compExprReduceTimeStampPut( pExpr, lJulian, lMilliSec );
 }
 
 PHB_EXPR hb_compExprReduceMinus( PHB_EXPR pSelf, HB_COMP_DECL )
@@ -587,7 +605,7 @@ PHB_EXPR hb_compExprReduceMinus( PHB_EXPR pSelf, HB_COMP_DECL )
             ( pRight->ExprType == HB_ET_DATE || pRight->ExprType == HB_ET_TIMESTAMP ) )
    {
       long lTime = pLeft->value.asDate.lTime - pRight->value.asDate.lTime,
-           lDate = pLeft->value.asDate.lDate - pRight->value.asDate.lDate;
+           lDate = hb_dateJulianSub( pLeft->value.asDate.lDate, pRight->value.asDate.lDate );
       if( lTime == 0 )
       {
          pSelf->value.asNum.val.l = lDate;
@@ -608,25 +626,24 @@ PHB_EXPR hb_compExprReduceMinus( PHB_EXPR pSelf, HB_COMP_DECL )
    }
    else if( pLeft->ExprType == HB_ET_DATE && pRight->ExprType == HB_ET_NUMERIC )
    {
-      if( pRight->value.asNum.NumType == HB_ET_LONG )
-         pSelf->value.asDate.lDate =  pLeft->value.asDate.lDate - ( long ) pRight->value.asNum.val.l;
-      else
-         pSelf->value.asDate.lDate = pLeft->value.asDate.lDate - HB_CAST_LONG( pRight->value.asNum.val.d );
-      pSelf->value.asDate.lTime = 0;
-      pSelf->ExprType = HB_ET_DATE;
-      pSelf->ValType  = HB_EV_DATE;
-      HB_COMP_EXPR_FREE( pLeft );
-      HB_COMP_EXPR_FREE( pRight );
+      if( hb_compExprReduceDatePut( pSelf, hb_dateJulianSub( pLeft->value.asDate.lDate,
+                pRight->value.asNum.NumType == HB_ET_LONG ? pRight->value.asNum.val.l :
+                HB_CAST_MAXINT( pRight->value.asNum.val.d ) ) ) )
+      {
+         HB_COMP_EXPR_FREE( pLeft );
+         HB_COMP_EXPR_FREE( pRight );
+      }
    }
    else if( pLeft->ExprType == HB_ET_TIMESTAMP && pRight->ExprType == HB_ET_NUMERIC )
    {
-      if( pRight->value.asNum.NumType == HB_ET_LONG )
-         hb_compExprReduceTimeStampPut( pSelf, pLeft->value.asDate.lDate - ( long ) pRight->value.asNum.val.l,
-                                        pLeft->value.asDate.lTime );
-      else
-         hb_compExprReduceTimeStampAdd( pSelf, pLeft, -pRight->value.asNum.val.d );
-      HB_COMP_EXPR_FREE( pLeft );
-      HB_COMP_EXPR_FREE( pRight );
+      if( pRight->value.asNum.NumType == HB_ET_LONG ?
+          hb_compExprReduceTimeStampPut( pSelf, hb_dateJulianSub( pLeft->value.asDate.lDate, pRight->value.asNum.val.l ),
+                                         pLeft->value.asDate.lTime ) :
+          hb_compExprReduceTimeStampAdd( pSelf, pLeft, -pRight->value.asNum.val.d ) )
+      {
+         HB_COMP_EXPR_FREE( pLeft );
+         HB_COMP_EXPR_FREE( pRight );
+      }
    }
    else if( pLeft->ExprType == HB_ET_STRING && pRight->ExprType == HB_ET_STRING )
    {
@@ -812,25 +829,24 @@ PHB_EXPR hb_compExprReducePlus( PHB_EXPR pSelf, HB_COMP_DECL )
       }
       else if( pRight->ExprType == HB_ET_DATE )
       {
-         if( pLeft->value.asNum.NumType == HB_ET_LONG )
-            pSelf->value.asDate.lDate = pRight->value.asDate.lDate + ( long ) pLeft->value.asNum.val.l;
-         else
-            pSelf->value.asDate.lDate = pRight->value.asDate.lDate + HB_CAST_LONG( pLeft->value.asNum.val.d );
-         pSelf->value.asDate.lTime = 0;
-         pSelf->ExprType = HB_ET_DATE;
-         pSelf->ValType  = HB_EV_DATE;
-         HB_COMP_EXPR_FREE( pLeft );
-         HB_COMP_EXPR_FREE( pRight );
+         if( hb_compExprReduceDatePut( pSelf, hb_dateJulianAdd( pRight->value.asDate.lDate,
+                   pLeft->value.asNum.NumType == HB_ET_LONG ? pLeft->value.asNum.val.l :
+                   HB_CAST_MAXINT( pLeft->value.asNum.val.d ) ) ) )
+         {
+            HB_COMP_EXPR_FREE( pLeft );
+            HB_COMP_EXPR_FREE( pRight );
+         }
       }
       else if( pRight->ExprType == HB_ET_TIMESTAMP )
       {
-         if( pLeft->value.asNum.NumType == HB_ET_LONG )
-            hb_compExprReduceTimeStampPut( pSelf, pRight->value.asDate.lDate + ( long ) pLeft->value.asNum.val.l,
-                                           pRight->value.asDate.lTime );
-         else
-            hb_compExprReduceTimeStampAdd( pSelf, pRight, pLeft->value.asNum.val.d );
-         HB_COMP_EXPR_FREE( pLeft );
-         HB_COMP_EXPR_FREE( pRight );
+         if( pLeft->value.asNum.NumType == HB_ET_LONG ?
+             hb_compExprReduceTimeStampPut( pSelf, hb_dateJulianAdd( pRight->value.asDate.lDate, pLeft->value.asNum.val.l ),
+                                            pRight->value.asDate.lTime ) :
+             hb_compExprReduceTimeStampAdd( pSelf, pRight, pLeft->value.asNum.val.d ) )
+         {
+            HB_COMP_EXPR_FREE( pLeft );
+            HB_COMP_EXPR_FREE( pRight );
+         }
       }
       else if( HB_SUPPORT_EXTOPT &&
                ( pLeft->value.asNum.NumType == HB_ET_LONG ?
@@ -865,25 +881,24 @@ PHB_EXPR hb_compExprReducePlus( PHB_EXPR pSelf, HB_COMP_DECL )
    {
       if( pLeft->ExprType == HB_ET_DATE )
       {
-         if( pRight->value.asNum.NumType == HB_ET_LONG )
-            pSelf->value.asDate.lDate = pLeft->value.asDate.lDate + ( long ) pRight->value.asNum.val.l;
-         else
-            pSelf->value.asDate.lDate = pLeft->value.asDate.lDate + HB_CAST_LONG( pRight->value.asNum.val.d );
-         pSelf->value.asDate.lTime = 0;
-         pSelf->ExprType = HB_ET_DATE;
-         pSelf->ValType  = HB_EV_DATE;
-         HB_COMP_EXPR_FREE( pLeft );
-         HB_COMP_EXPR_FREE( pRight );
+         if( hb_compExprReduceDatePut( pSelf, hb_dateJulianAdd( pLeft->value.asDate.lDate,
+                   pRight->value.asNum.NumType == HB_ET_LONG ? pRight->value.asNum.val.l :
+                   HB_CAST_MAXINT( pRight->value.asNum.val.d ) ) ) )
+         {
+            HB_COMP_EXPR_FREE( pLeft );
+            HB_COMP_EXPR_FREE( pRight );
+         }
       }
       else if( pLeft->ExprType == HB_ET_TIMESTAMP )
       {
-         if( pRight->value.asNum.NumType == HB_ET_LONG )
-            hb_compExprReduceTimeStampPut( pSelf, pLeft->value.asDate.lDate + ( long ) pRight->value.asNum.val.l,
-                                           pLeft->value.asDate.lTime );
-         else
-            hb_compExprReduceTimeStampAdd( pSelf, pLeft, pRight->value.asNum.val.d );
-         HB_COMP_EXPR_FREE( pLeft );
-         HB_COMP_EXPR_FREE( pRight );
+         if( pRight->value.asNum.NumType == HB_ET_LONG ?
+             hb_compExprReduceTimeStampPut( pSelf, hb_dateJulianAdd( pLeft->value.asDate.lDate, pRight->value.asNum.val.l ),
+                                            pLeft->value.asDate.lTime ) :
+             hb_compExprReduceTimeStampAdd( pSelf, pLeft, pRight->value.asNum.val.d ) )
+         {
+            HB_COMP_EXPR_FREE( pLeft );
+            HB_COMP_EXPR_FREE( pRight );
+         }
       }
       else if( HB_SUPPORT_EXTOPT &&
                ( pRight->value.asNum.NumType == HB_ET_LONG ?
@@ -917,22 +932,17 @@ PHB_EXPR hb_compExprReducePlus( PHB_EXPR pSelf, HB_COMP_DECL )
    else if( ( pLeft->ExprType == HB_ET_DATE || pLeft->ExprType == HB_ET_TIMESTAMP ) &&
             ( pRight->ExprType == HB_ET_DATE || pRight->ExprType == HB_ET_TIMESTAMP ) )
    {
-      if( pLeft->ExprType == HB_ET_TIMESTAMP || pRight->ExprType == HB_ET_TIMESTAMP )
+      /* NOTE: This is not a bug. CA-Cl*pper does exactly that for DATEs. */
+      if( pLeft->ExprType == HB_ET_TIMESTAMP || pRight->ExprType == HB_ET_TIMESTAMP ?
+          hb_compExprReduceTimeStampPut( pSelf,
+                           hb_dateJulianAdd( pLeft->value.asDate.lDate, pRight->value.asDate.lDate ),
+                           pLeft->value.asDate.lTime + pRight->value.asDate.lTime ) :
+          hb_compExprReduceDatePut( pSelf,
+                           hb_dateJulianAdd( pLeft->value.asDate.lDate, pRight->value.asDate.lDate ) ) )
       {
-         hb_compExprReduceTimeStampPut( pSelf,
-                           pLeft->value.asDate.lDate + pRight->value.asDate.lDate,
-                           pLeft->value.asDate.lTime + pRight->value.asDate.lTime );
+         HB_COMP_EXPR_FREE( pLeft );
+         HB_COMP_EXPR_FREE( pRight );
       }
-      else
-      {
-         /* NOTE: This is not a bug. CA-Cl*pper does exactly that for DATEs. */
-         pSelf->value.asDate.lDate = pLeft->value.asDate.lDate + pRight->value.asDate.lDate;
-         pSelf->value.asDate.lTime = 0;
-         pSelf->ExprType = HB_ET_DATE;
-         pSelf->ValType  = HB_EV_DATE;
-      }
-      HB_COMP_EXPR_FREE( pLeft );
-      HB_COMP_EXPR_FREE( pRight );
    }
    else if( pLeft->ExprType == HB_ET_STRING && pRight->ExprType == HB_ET_STRING )
    {

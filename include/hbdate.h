@@ -125,6 +125,9 @@ extern HB_EXPORT HB_BOOL hb_timeStampStrGetDT( const char * szDateTime,
 extern HB_EXPORT HB_BOOL hb_timeStampStrGetDTU( const char * szDateTime,
                                                 long * plJulian, long * plMilliSec, HB_BOOL * pfUTC );
 
+extern HB_EXPORT long   hb_dateJulianAdd( long lJulian, HB_MAXINT nDays );
+extern HB_EXPORT long   hb_dateJulianSub( long lJulian, HB_MAXINT nDays );
+
 extern HB_EXPORT double hb_timeStampPackDT( long lJulian, long lMilliSec );
 extern HB_EXPORT void   hb_timeStampUnpackDT( double dTimeStamp,
                                               long * plJulian, long * plMilliSec );

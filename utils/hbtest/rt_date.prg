@@ -186,7 +186,29 @@ PROCEDURE Main_DATE()
    HBTEST DToS( sdDate )                  IS "19840325"
    HBTEST DToS( sdDateE )                 IS "        "
 
+#ifdef __HARBOUR__
+   /* date arithmetic out of the range of julian dates is saturated,
+      compile time optimization gives the same results as runtime */
+   HBTEST 0d20200101 + 100000000000000000000 == TDateAdd( 0d20200101, 100000000000000000000 ) IS .T.
+   HBTEST 0d20200101 - 100000000000000000000 == TDateSub( 0d20200101, 100000000000000000000 ) IS .T.
+   HBTEST TDateSub( 0d20200101, 100000000000000000000 ) - 0d20200101 < 0   IS .T.
+   HBTEST TDateAdd( 0d20200101, 100000000000000000000 ) - 0d20200101 > 0   IS .T.
+   HBTEST TDateAdd( 0d20200101, -100000000000000000000 ) - 0d20200101 < 0  IS .T.
+   HBTEST ( 0d20200101 + 100000000000000000000 ) - 0d20200101 == TDateAdd( 0d20200101, 100000000000000000000 ) - 0d20200101 IS .T.
+   HBTEST TDateAdd( hb_SToT( "20200101123000" ), 100000000000000000000 ) - hb_SToT( "20200101123000" ) > 0 IS .T.
+   HBTEST TDateAdd( hb_SToT( "20200101123000" ), -100000000000000000000 ) - hb_SToT( "20200101123000" ) < 0 IS .T.
+   HBTEST DToS( TDateAdd( 0d20200101, 31 ) )                              IS "20200201"
+#endif
+
    RETURN
+
+#ifdef __HARBOUR__
+STATIC FUNCTION TDateAdd( d, n )
+   RETURN d + n
+
+STATIC FUNCTION TDateSub( d, n )
+   RETURN d - n
+#endif
 
 /* Don't change the position of this #include. */
 #include "rt_init.ch"
