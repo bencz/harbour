@@ -364,7 +364,7 @@ int hb_dateJulianDOW( long lJulian )
    HB_TRACE( HB_TR_DEBUG, ( "hb_dateJulianDOW(%ld)", lJulian ) );
 
    if( lJulian >= HB_STR_DATE_BASE )
-      return ( int ) ( ( lJulian + 1 ) % 7 ) + 1;
+      return ( int ) ( ( lJulian % 7 + 1 ) % 7 ) + 1;
    else
       return 0;
 }
@@ -1124,20 +1124,31 @@ long hb_timeUTCOffset( void ) /* in seconds */
    }
 #else
    {
-      struct tm timeinfo;
+      struct tm timeinfo, * ptm;
       time_t current, utc, local;
 
       time( &current );
 
 #if defined( HB_HAS_LOCALTIME_R )
-      utc = mktime( gmtime_r( &current, &timeinfo ) );
-      local = mktime( localtime_r( &current, &timeinfo ) );
+      ptm = gmtime_r( &current, &timeinfo );
 #else
-      timeinfo = *gmtime( &current );
-      utc = mktime( &timeinfo );
-      timeinfo = *localtime( &current );
-      local = mktime( &timeinfo );
+      ptm = gmtime( &current );
+      if( ptm )
+         timeinfo = *ptm;
 #endif
+      if( ptm == NULL )
+         return 0;
+      utc = mktime( &timeinfo );
+#if defined( HB_HAS_LOCALTIME_R )
+      ptm = localtime_r( &current, &timeinfo );
+#else
+      ptm = localtime( &current );
+      if( ptm )
+         timeinfo = *ptm;
+#endif
+      if( ptm == NULL )
+         return 0;
+      local = mktime( &timeinfo );
       return ( long ) difftime( local, utc ) + ( timeinfo.tm_isdst > 0 ? 3600 : 0 );
    }
 #endif
@@ -1209,13 +1220,19 @@ long hb_timeStampUTCOffset( int iYear, int iMonth, int iDay,
       if( local != ( time_t ) -1 )
       {
          int isdst = ( timeinfo.tm_isdst > 0 ? 3600 : 0 );
+         struct tm * ptm;
 #if defined( HB_HAS_LOCALTIME_R )
-         utc = mktime( gmtime_r( &local, &timeinfo ) );
+         ptm = gmtime_r( &local, &timeinfo );
 #else
-         timeinfo = *gmtime( &local );
-         utc = mktime( &timeinfo );
+         ptm = gmtime( &local );
+         if( ptm )
+            timeinfo = *ptm;
 #endif
-         return ( long ) difftime( local, utc ) + isdst;
+         if( ptm != NULL )
+         {
+            utc = mktime( &timeinfo );
+            return ( long ) difftime( local, utc ) + isdst;
+         }
       }
       return 0;
    }
@@ -1294,19 +1311,38 @@ double hb_timeUTCToLocal( double dTimeStamp, int * piUTCOffset )
 #else
    {
       long lJulian, lMilliSec;
-      struct tm lt;
+      struct tm lt, * plt = NULL;
       time_t utc;
+      double dUTC, dLim;
 
       hb_timeStampUnpackDT( dTimeStamp, &lJulian, &lMilliSec );
-      utc = ( time_t ) ( ( lJulian - HB_SYS_DATE_BASE ) * HB_SECONDS_PER_DAY + lMilliSec / 1000 );
+      /* time_t can be 32-bit, timestamps out of its range are not
+         converted, overflow in conversion is undefined behavior */
+      dUTC = ( ( double ) lJulian - HB_SYS_DATE_BASE ) * HB_SECONDS_PER_DAY +
+             lMilliSec / 1000;
+      dLim = sizeof( time_t ) >= 8 ? 9.2e18 : 2147483647.0;
+      if( dUTC <= dLim && dUTC >= ( ( time_t ) -1 < 0 ? -dLim : 0 ) )
+      {
+         utc = ( time_t ) dUTC;
 #if defined( HB_HAS_LOCALTIME_R )
-      localtime_r( &utc, &lt );
+         plt = localtime_r( &utc, &lt );
 #else
-      lt = *localtime( &utc );
+         plt = localtime( &utc );
+         if( plt )
+            lt = *plt;
 #endif
-      lJulian = hb_dateEncode( lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday );
-      lMilliSec = hb_timeEncode( lt.tm_hour, lt.tm_min, lt.tm_sec, lMilliSec % 1000 );
-      dLocal = hb_timeStampPackDT( lJulian, lMilliSec );
+      }
+      /* dates which cannot be encoded, i.e. after year 9999, are not
+         converted too */
+      if( plt )
+         lJulian = hb_dateEncode( lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday );
+      if( plt && lJulian != 0 )
+      {
+         lMilliSec = hb_timeEncode( lt.tm_hour, lt.tm_min, lt.tm_sec, lMilliSec % 1000 );
+         dLocal = hb_timeStampPackDT( lJulian, lMilliSec );
+      }
+      else
+         dLocal = dTimeStamp;
    }
 #endif
 

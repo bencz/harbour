@@ -198,6 +198,17 @@ PROCEDURE Main_DATE()
    HBTEST TDateAdd( hb_SToT( "20200101123000" ), 100000000000000000000 ) - hb_SToT( "20200101123000" ) > 0 IS .T.
    HBTEST TDateAdd( hb_SToT( "20200101123000" ), -100000000000000000000 ) - hb_SToT( "20200101123000" ) < 0 IS .T.
    HBTEST DToS( TDateAdd( 0d20200101, 31 ) )                              IS "20200201"
+   HBTEST Descend( TDateAdd( 0d20200101, -100000000000000000000 ) ) > 0    IS .T.
+   HBTEST Descend( 0d20200101 )                                           IS 2772958
+   HBTEST DToS( TDateAdd( 0d20200101, 100000000000000000000 ) )           IS "00000000"
+   HBTEST ValType( hb_UTCToTS( TDateAdd( hb_SToT( "20200101" ), 100000000000000000000 ) ) ) IS "T"
+   HBTEST ValType( hb_UTCToTS( TDateAdd( hb_SToT( "20200101" ), -100000000000000000000 ) ) ) IS "T"
+   HBTEST hb_UTCToTS( hb_SToT( "20200101" ) + 1000000000 ) == hb_SToT( "20200101" ) + 1000000000 IS .T.
+   HBTEST ValType( hb_DToT( 0d20200101, 1000000000000000000000000000000 ) ) IS "T"
+   HBTEST hb_TToS( hb_DToT( 0d20200101, 3600.5 ) )                        IS "20200101010000500"
+   HBTEST hb_TToS( hb_DToT( 0d20200101, -1 ) )                            IS "20200101000000000"
+   HBTEST hb_NToMSec( 1000000000000000000000000000000 ) > 0               IS .T.
+   HBTEST hb_NToMSec( 1.5 )                                               IS 129600000
 #endif
 
    RETURN

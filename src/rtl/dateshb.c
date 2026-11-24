@@ -235,8 +235,13 @@ HB_FUNC( HB_DTOT )
          hb_timeStampStrGetDT( szTime, &lDate2, &lTime );
       else if( HB_ISNUM( 2 ) )
       {
-         lTime = ( long ) ( hb_parnd( 2 ) * 1000 );
-         if( lTime < 0 )
+         /* values out of range of long and NaN cannot be converted */
+         double dTime = hb_parnd( 2 ) * 1000;
+         if( dTime >= ( double ) LONG_MAX )
+            lTime = LONG_MAX;
+         else if( dTime > 0 )
+            lTime = ( long ) dTime;
+         else
             lTime = 0;
       }
       else
@@ -297,7 +302,10 @@ HB_FUNC( HB_NTOMSEC )
    PHB_ITEM pNum = hb_param( 1, HB_IT_NUMERIC );
 
    if( pNum )
-      hb_retnint( ( HB_MAXINT ) ( hb_itemGetND( pNum ) * HB_MILLISECS_PER_DAY ) );
+   {
+      double dMilliSec = hb_itemGetND( pNum ) * HB_MILLISECS_PER_DAY;
+      hb_retnint( HB_CAST_MAXINT( dMilliSec ) );
+   }
    else
       hb_errRT_BASE_SubstR( EG_ARG, 3012, NULL, HB_ERR_FUNCNAME, HB_ERR_ARGS_BASEPARAMS );
 }

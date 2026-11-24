@@ -46,6 +46,7 @@
 
 #include "hbapi.h"
 #include "hbapiitm.h"
+#include "hbdate.h"
 
 void hb_strDescend( char * szStringTo, const char * szStringFrom, HB_SIZE nLen )
 {
@@ -80,7 +81,7 @@ HB_FUNC( DESCEND )
             hb_retc_null();
       }
       else if( HB_IS_DATE( pItem ) )
-         hb_retnl( 5231808 - hb_itemGetDL( pItem ) );
+         hb_retnl( hb_dateJulianSub( 5231808, hb_itemGetDL( pItem ) ) );
       else if( HB_IS_NUMERIC( pItem ) )
          hb_retnd( -1 * hb_itemGetND( pItem ) );
       else if( HB_IS_LOGICAL( pItem ) )

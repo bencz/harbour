@@ -7,6 +7,26 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 14:27 UTC-0300 Alexandre Bencz
+  * src/common/hbdate.c
+    ! fixed overflow in hb_dateJulianDOW() for the greatest julian dates
+    ! fixed hb_timeUTCToLocal() on non Windows platforms for timestamps
+      out of the range of time_t, e.g. after year 2038 with 32-bit long
+      or time_t, and after year 9999. Seconds were calculated in long
+      and overflowed and result of localtime() was not checked. Now such
+      timestamps are not converted.
+    ! check results of gmtime() and localtime() in hb_timeUTCOffset() and
+      hb_timeStampUTCOffset()
+
+  * src/rtl/dateshb.c
+    ! fixed hb_DToT() and hb_NToMSec() with numbers out of integer range
+
+  * src/rtl/descend.c
+    ! fixed overflow in Descend() of the greatest and the smallest dates
+
+  * utils/hbtest/rt_date.prg
+    + added tests for dates out of range
+
 2026-11-24 14:02 UTC-0300 Alexandre Bencz
   * include/hbdate.h
   * src/common/hbdate.c
