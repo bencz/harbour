@@ -1683,7 +1683,7 @@ typedef struct _HB_MUTEX
    int                lock_count;
    int                lockers;
    int                waiters;
-   int                syncsignals;
+   int                syncsignals;   /* generation counter of sync signals */
    PHB_ITEM           events;
    HB_THREAD_ID       owner;
    HB_RAWCRITICAL_T   mutex;
@@ -1874,14 +1874,17 @@ void hb_threadMutexSyncSignal( PHB_ITEM pItemMtx )
       hb_vmUnlock();
       HB_CRITICAL_LOCK( pMutex->mutex );
 
+      /* signal all threads waiting at this moment: each of them waits
+         until the generation counter is changed so threads which start
+         waiting after this signal cannot take it */
       if( pMutex->waiters )
       {
-         int iCount = pMutex->waiters - pMutex->syncsignals;
-
-         if( iCount == 1 )
+         pMutex->syncsignals = pMutex->syncsignals == INT_MAX ? 0 :
+                               pMutex->syncsignals + 1;
+         if( pMutex->waiters == 1 )
             HB_COND_SIGNAL( pMutex->cond_w );
-         else if( iCount > 0 )
-            HB_COND_SIGNALN( pMutex->cond_w, iCount );
+         else
+            HB_COND_SIGNALN( pMutex->cond_w, pMutex->waiters );
       }
 
       HB_CRITICAL_UNLOCK( pMutex->mutex );
@@ -1908,12 +1911,17 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
    if( pMutex )
    {
       int lock_count = 0;
+      int iSyncGen;
 
       hb_vmUnlock();
 
       HB_CRITICAL_LOCK( pMutex->mutex );
 
-      if( ulMilliSec && pMutex->syncsignals == 0 )
+      /* wait for the next signal: generation counter is changed by
+         hb_threadMutexSyncSignal() */
+      iSyncGen = pMutex->syncsignals;
+
+      if( ulMilliSec )
       {
          /* release own lock from sync mutex */
          if( pSyncMutex && HB_THREAD_EQUAL( pSyncMutex->owner, HB_THREAD_SELF() ) )
@@ -1929,7 +1937,7 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
 
          if( ulMilliSec == HB_THREAD_INFINITE_WAIT )
          {
-            while( pMutex->syncsignals == 0 )
+            while( pMutex->syncsignals == iSyncGen )
             {
                pMutex->waiters++;
 #  if defined( HB_PTHREAD_API )
@@ -1954,7 +1962,7 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
                struct timespec ts;
 
                hb_threadTimeInit( &ts, ulMilliSec );
-               while( pMutex->syncsignals == 0 )
+               while( pMutex->syncsignals == iSyncGen )
                {
                   if( pthread_cond_timedwait( &pMutex->cond_w, &pMutex->mutex, &ts ) != 0 )
                      break;
@@ -1981,11 +1989,8 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
          }
       }
 
-      if( pMutex->syncsignals > 0 )
-      {
-         pMutex->syncsignals--;
+      if( pMutex->syncsignals != iSyncGen )
          fResult = HB_TRUE;
-      }
 
       HB_CRITICAL_UNLOCK( pMutex->mutex );
 

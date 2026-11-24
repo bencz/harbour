@@ -7,6 +7,21 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 07:21 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed hb_threadMutexSyncSignal() / hb_threadMutexSyncWait() used by
+      __clsSyncSignal() / __clsSyncWait() (class SYNC methods and Xbase++
+      compatible Signal class in hbxpp). Signal counter was never
+      incremented so signal never woke up waiting threads: infinite wait
+      never finished and wait with timeout always returned .F.
+      Now syncsignals is a generation counter: signal changes it and wakes
+      up all threads waiting at this moment, each waiting thread waits
+      until the counter is changed so threads which start waiting after
+      signal cannot take it.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for __clsSyncSignal() / __clsSyncWait()
+
 2026-11-24 06:58 UTC-0300 Alexandre Bencz
   * src/common/expropt2.c
     ! fixed compile time optimization of Len() and Empty() used with array

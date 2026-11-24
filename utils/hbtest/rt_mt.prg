@@ -57,6 +57,7 @@ PROCEDURE Main_MT()
 #ifdef __HARBOUR__
    IF hb_mtvm()
       HBTEST DO_MTTES1()              IS "OK"
+      HBTEST DO_MTTES2()              IS "3"
    ENDIF
 #endif
 
@@ -100,6 +101,42 @@ STATIC FUNCTION DO_MTTES1()
 
    RETURN "ERROR, final sum: " + hb_ntos( nSum ) + ;
                  " expected: " + hb_ntos( nExpected )
+
+/* __clsSyncSignal() has to wake up all threads waiting in __clsSyncWait() */
+STATIC FUNCTION DO_MTTES2()
+
+   LOCAL aThreads := {}, mtxSync, mtxCount, aCount := { 0 }, i, nStart
+
+   mtxSync := hb_mutexCreate()
+   mtxCount := hb_mutexCreate()
+   FOR i := 1 TO 3
+      AAdd( aThreads, hb_threadStart( @thSyncWait(), mtxSync, mtxCount, aCount ) )
+   NEXT
+   nStart := hb_MilliSeconds()
+   DO WHILE hb_MilliSeconds() - nStart < 3000
+      __clsSyncSignal( mtxSync )
+      hb_mutexLock( mtxCount )
+      i := aCount[ 1 ]
+      hb_mutexUnlock( mtxCount )
+      IF i == 3
+         EXIT
+      ENDIF
+      hb_idleSleep( 0.01 )
+   ENDDO
+   AEval( aThreads, {| x | hb_threadJoin( x ) } )
+
+   RETURN hb_ntos( aCount[ 1 ] )
+
+STATIC PROCEDURE thSyncWait( mtxSync, mtxCount, aCount )
+
+   /* timeout is in 1/100 of second (Xbase++ compatible) */
+   IF __clsSyncWait( mtxSync, 200 )
+      hb_mutexLock( mtxCount )
+      aCount[ 1 ]++
+      hb_mutexUnlock( mtxCount )
+   ENDIF
+
+   RETURN
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 
