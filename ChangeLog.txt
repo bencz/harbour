@@ -7,6 +7,18 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 08:24 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed deadlock in hb_threadWait() / hb_threadJoin() with GC.
+      s_thread_mtx was locked when HVM was locked and HVM was locked again
+      after waiting when s_thread_mtx was still locked so thread stopped
+      in hb_vmLock() by GC could keep s_thread_mtx which other thread
+      waited for with locked HVM and GC waited for this thread forever.
+      Now HVM is unlocked before s_thread_mtx is locked and locked again
+      after s_thread_mtx is unlocked.
+    % do not unlock HVM in hb_threadWait() when threads have already
+      finished or timeout is 0
+
 2026-11-24 07:58 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed counter of threads waiting in hb_threadWait(). It was

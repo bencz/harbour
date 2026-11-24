@@ -1350,44 +1350,68 @@ HB_FUNC( HB_THREADISMAIN )
 }
 
 #if defined( HB_MT_VM )
+static HB_BOOL hb_threadWaitDone( PHB_THREADSTATE * pThreads, int iThreads,
+                                  HB_BOOL fAll, int * piFinished, int * piResult )
+{
+   int i, iFinished = 0;
+
+   for( i = 0; i < iThreads; ++i )
+   {
+      if( pThreads[ i ]->fFinished )
+      {
+         iFinished++;
+         if( ! fAll )
+         {
+            *piResult = i + 1;
+            break;
+         }
+      }
+   }
+   *piFinished = iFinished;
+
+   return iFinished >= ( fAll ? iThreads : 1 );
+}
+
 static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
                           HB_BOOL fAll, HB_ULONG ulMilliSec )
 {
-   int i, iFinished, iResult = 0;
+   int iFinished, iResult = 0;
    HB_BOOL fExit = ulMilliSec == 0;
-
 #if defined( HB_PTHREAD_API )
    struct timespec ts;
+#else
+   HB_MAXUINT timer;
+#endif
 
+   /* fFinished is never cleared so if threads have already finished
+    * or we do not want to wait then return immediately without
+    * unlocking HVM. Otherwise check it again with s_thread_mtx locked.
+    */
+   if( hb_threadWaitDone( pThreads, iThreads, fAll, &iFinished, &iResult ) || fExit )
+      return fAll ? iFinished : iResult;
+
+#if defined( HB_PTHREAD_API )
    if( ulMilliSec != HB_THREAD_INFINITE_WAIT )
       hb_threadTimeInit( &ts, ulMilliSec );
    else
       ts.tv_sec = ts.tv_nsec = 0;
 #else
-   HB_MAXUINT timer;
-
    if( ulMilliSec != HB_THREAD_INFINITE_WAIT )
       timer = hb_timerGet() + ulMilliSec;
    else
       timer = 0;
 #endif
 
+   /* HVM is unlocked before s_thread_mtx is locked and locked again after
+    * s_thread_mtx is unlocked. Otherwise this thread could wait for
+    * s_thread_mtx with locked HVM while other thread which keeps it is
+    * stopped in hb_vmLock() by GC waiting for this thread - deadlock.
+    */
+   hb_vmUnlock();
    HB_CRITICAL_LOCK( s_thread_mtx );
    for( ;; )
    {
-      for( i = iFinished = 0; i < iThreads; ++i )
-      {
-         if( pThreads[ i ]->fFinished )
-         {
-            iFinished++;
-            if( ! fAll )
-            {
-               iResult = i + 1;
-               break;
-            }
-         }
-      }
-      if( iFinished >= ( fAll ? iThreads : 1 ) )
+      if( hb_threadWaitDone( pThreads, iThreads, fAll, &iFinished, &iResult ) )
          break;
 
       if( fExit )
@@ -1395,28 +1419,19 @@ static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
 
       s_waiting_for_threads++;
 #if defined( HB_PTHREAD_API )
-      hb_vmUnlock();
       if( ulMilliSec != HB_THREAD_INFINITE_WAIT )
          fExit = pthread_cond_timedwait( &s_thread_cond, &s_thread_mtx, &ts ) != 0;
       else
          fExit = pthread_cond_wait( &s_thread_cond, &s_thread_mtx ) != 0;
-      hb_vmLock();
       s_waiting_for_threads--;
 #else
 #  if defined( HB_TASK_THREAD )
-      hb_vmUnlock();
       fExit = ! hb_taskWait( &s_thread_cond, &s_thread_mtx, ulMilliSec );
-      hb_vmLock();
 #  elif defined( HB_COND_HARBOUR_SUPPORT )
-      hb_vmUnlock();
       fExit = ! _hb_thread_cond_wait( &s_thread_cond, &s_thread_mtx, ulMilliSec );
-      hb_vmLock();
 #  else
-
       HB_CRITICAL_UNLOCK( s_thread_mtx );
-      hb_vmUnlock();
       fExit = ! HB_COND_TIMEDWAIT( s_thread_cond, ulMilliSec );
-      hb_vmLock();
       HB_CRITICAL_LOCK( s_thread_mtx );
 #  endif
       s_waiting_for_threads--;
@@ -1434,6 +1449,7 @@ static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
          break;
    }
    HB_CRITICAL_UNLOCK( s_thread_mtx );
+   hb_vmLock();
 
    return fAll ? iFinished : iResult;
 }
