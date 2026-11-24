@@ -443,11 +443,28 @@ void hb_sha256_update(hb_sha256_ctx *ctx, const void *messagev,
     ctx->tot_len += (block_nb + 1) << 6;
 }
 
+/* Store the message length in bits as big-endian number in the last
+   8 (SHA-224/256) or 16 (SHA-384/512) bytes of the padding block.
+   HB_SIZE is never shifted by its width so it works for 32-bit and
+   64-bit sizes. Higher bits of SHA-384/512 length are always zero. */
+static void sha2_put_len(HB_SIZE nSize, unsigned char *str, int fLong)
+{
+    HB_U32 len;
+
+    len = ((HB_U32) nSize) << 3;
+    UNPACK32(len, str - 4);
+    len = (HB_U32) (nSize >> 29);
+    UNPACK32(len, str - 8);
+    if (fLong) {
+        len = (HB_U32) (((nSize >> 29) >> 16) >> 16);
+        UNPACK32(len, str - 12);
+    }
+}
+
 void hb_sha256_final(hb_sha256_ctx *ctx, unsigned char *digest)
 {
     HB_SIZE block_nb;
     HB_SIZE pm_len;
-    HB_SIZE len_b;
 
 #ifndef UNROLL_LOOPS
     int i;
@@ -456,12 +473,11 @@ void hb_sha256_final(hb_sha256_ctx *ctx, unsigned char *digest)
     block_nb = (1 + ((HB_SHA256_BLOCK_SIZE - 9)
                      < (ctx->len % HB_SHA256_BLOCK_SIZE)));
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 6;
 
     memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
     ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    sha2_put_len(ctx->tot_len + ctx->len, ctx->block + pm_len, 0);
 
     sha256_transf(ctx, ctx->block, block_nb);
 
@@ -790,7 +806,6 @@ void hb_sha512_final(hb_sha512_ctx *ctx, unsigned char *digest)
 {
     HB_SIZE block_nb;
     HB_SIZE pm_len;
-    HB_SIZE len_b;
 
 #ifndef UNROLL_LOOPS
     int i;
@@ -799,12 +814,11 @@ void hb_sha512_final(hb_sha512_ctx *ctx, unsigned char *digest)
     block_nb = 1 + ((HB_SHA512_BLOCK_SIZE - 17)
                      < (ctx->len % HB_SHA512_BLOCK_SIZE));
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 7;
 
     memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
     ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    sha2_put_len(ctx->tot_len + ctx->len, ctx->block + pm_len, 1);
 
     sha512_transf(ctx, ctx->block, block_nb);
 
@@ -828,18 +842,16 @@ void hb_sha512_final(hb_sha512_ctx *ctx, unsigned char *digest)
 {
     HB_SIZE block_nb;
     HB_SIZE pm_len;
-    HB_SIZE len_b;
     int i;
 
     block_nb = 1 + ((HB_SHA512_BLOCK_SIZE - 17)
                      < (ctx->len % HB_SHA512_BLOCK_SIZE));
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 7;
 
     memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
     ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    sha2_put_len(ctx->tot_len + ctx->len, ctx->block + pm_len, 1);
 
     sha512_transf(ctx, ctx->block, block_nb);
 
@@ -933,7 +945,6 @@ void hb_sha384_final(hb_sha384_ctx *ctx, unsigned char *digest)
 {
     HB_SIZE block_nb;
     HB_SIZE pm_len;
-    HB_SIZE len_b;
 
 #ifndef UNROLL_LOOPS
     int i;
@@ -942,12 +953,11 @@ void hb_sha384_final(hb_sha384_ctx *ctx, unsigned char *digest)
     block_nb = (1 + ((HB_SHA384_BLOCK_SIZE - 17)
                      < (ctx->len % HB_SHA384_BLOCK_SIZE)));
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 7;
 
     memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
     ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    sha2_put_len(ctx->tot_len + ctx->len, ctx->block + pm_len, 1);
 
     sha512_transf(ctx, ctx->block, block_nb);
 
@@ -969,18 +979,16 @@ void hb_sha384_final(hb_sha384_ctx *ctx, unsigned char *digest)
 {
     HB_SIZE block_nb;
     HB_SIZE pm_len;
-    HB_SIZE len_b;
     int i;
 
     block_nb = 1 + ((HB_SHA384_BLOCK_SIZE - 17)
                      < (ctx->len % HB_SHA384_BLOCK_SIZE));
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 7;
 
     memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
     ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    sha2_put_len(ctx->tot_len + ctx->len, ctx->block + pm_len, 1);
 
     sha512_transf(ctx, ctx->block, block_nb);
 
@@ -1060,7 +1068,6 @@ void hb_sha224_final(hb_sha224_ctx *ctx, unsigned char *digest)
 {
     HB_SIZE block_nb;
     HB_SIZE pm_len;
-    HB_SIZE len_b;
 
 #ifndef UNROLL_LOOPS
     int i;
@@ -1069,12 +1076,11 @@ void hb_sha224_final(hb_sha224_ctx *ctx, unsigned char *digest)
     block_nb = (1 + ((HB_SHA224_BLOCK_SIZE - 9)
                      < (ctx->len % HB_SHA224_BLOCK_SIZE)));
 
-    len_b = (ctx->tot_len + ctx->len) << 3;
     pm_len = block_nb << 6;
 
     memset(ctx->block + ctx->len, 0, pm_len - ctx->len);
     ctx->block[ctx->len] = 0x80;
-    UNPACK32(len_b, ctx->block + pm_len - 4);
+    sha2_put_len(ctx->tot_len + ctx->len, ctx->block + pm_len, 0);
 
     sha256_transf(ctx, ctx->block, block_nb);
 

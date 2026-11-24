@@ -7,6 +7,13 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:24 UTC-0300 Alexandre Bencz
+  * src/rtl/sha2.c
+    ! fixed SHA-224, SHA-256, SHA-384 and SHA-512 digests of messages
+      longer than 512 MiB. Only the low 32 bits of the message length in
+      bits were stored in the padding block. Now the whole length is
+      stored also in builds with 32-bit HB_SIZE.
+
 2026-11-24 13:23 UTC-0300 Alexandre Bencz
   * src/common/hbstr.c
     ! fixed hex and binary numbers which do not fit in HB_MAXINT, e.g.
