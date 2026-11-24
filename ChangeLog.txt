@@ -7,6 +7,18 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 11:28 UTC-0300 Alexandre Bencz
+  * src/rdd/dbcmd.c
+    ! fixed crash (infinite recursion) when relations between work areas
+      created cycle, e.g. SET RELATION TO ... INTO b in area a and then
+      SET RELATION TO ... INTO a in area b. Moving record pointer
+      synchronized child areas in infinite loop. Only relation of area to
+      itself was detected. Now dbSetRelation() generates DBCMD/1013 error
+      when new relation creates a cycle.
+
+  * utils/hbtest/rt_misc.prg
+    + added test for relations creating cycles
+
 2026-11-24 11:21 UTC-0300 Alexandre Bencz
   * include/hbexprb.c
   * src/rtl/hbbit.c

@@ -1064,11 +1064,72 @@ PROCEDURE Main_MISC()
 
 #ifdef __HARBOUR__
    Set( _SET_EOL, cEOL )
+
+   /* relations which would create cycle are not allowed */
+   HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
 #endif
 
    RETURN
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION TRelCycle()
+
+   LOCAL nArea := Select(), aRes := {}, cName, i
+   LOCAL aNames := { "_hbrel1", "_hbrel2", "_hbrel3" }
+
+   FOR EACH cName IN aNames
+      dbCreate( cName, { { "K", "N", 5, 0 } } )
+      USE ( cName ) NEW EXCLUSIVE ALIAS ( cName )
+      FOR i := 1 TO 3
+         dbAppend()
+         FIELD->K := i
+      NEXT
+   NEXT
+
+   AAdd( aRes, TRelSet( "_hbrel1", "_hbrel2" ) )   /* 1 -> 2 */
+   AAdd( aRes, TRelSet( "_hbrel2", "_hbrel1" ) )   /* 2 -> 1: cycle */
+   AAdd( aRes, TRelSet( "_hbrel1", "_hbrel1" ) )   /* 1 -> 1 */
+   TRelSet( "_hbrel2", "_hbrel3" )                 /* 1 -> 2 -> 3 */
+   AAdd( aRes, TRelSet( "_hbrel3", "_hbrel1" ) )   /* 3 -> 1: cycle */
+
+   dbSelectArea( "_hbrel1" )
+   dbGoTop()
+   dbSkip()
+   AAdd( aRes, hb_ntos( _hbrel2->K ) )
+   AAdd( aRes, hb_ntos( _hbrel3->K ) )
+
+   FOR EACH cName IN aNames
+      ( cName )->( dbCloseArea() )
+      FErase( cName + ".dbf" )
+   NEXT
+   dbSelectArea( nArea )
+   AAdd( aRes, "OK" )
+
+   RETURN TRelJoin( aRes )
+
+STATIC FUNCTION TRelJoin( aRes )
+
+   LOCAL cRes := "", cItem
+
+   FOR EACH cItem IN aRes
+      cRes += iif( cItem:__enumIndex() > 1, "/", "" ) + cItem
+   NEXT
+
+   RETURN cRes
+
+STATIC FUNCTION TRelSet( cParent, cChild )
+
+   LOCAL cResult := "OK", oError
+
+   dbSelectArea( cParent )
+   BEGIN SEQUENCE WITH {| e | Break( e ) }
+      dbSetRelation( cChild, {|| FIELD->K }, "K" )
+   RECOVER USING oError
+      cResult := hb_ntos( oError:subCode )
+   END SEQUENCE
+
+   RETURN cResult
 
 PROCEDURE Main_OPOVERL()
 

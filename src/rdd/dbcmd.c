@@ -1782,6 +1782,58 @@ HB_FUNC( DBCLEARRELATION )
       SELF_CLEARREL( pArea );
 }
 
+/* check if pArea is pChild or it is reachable from pChild by its
+ * relations, relation from pArea to pChild would create cycle and
+ * synchronization of child areas would never finish
+ */
+static HB_BOOL hb_dbRelIsCyclic( AREAP pArea, AREAP pChild )
+{
+   AREAP * pAreas;
+   HB_SIZE nCount = 0, nSize = 16, nPos = 0;
+   HB_BOOL fCyclic = HB_FALSE;
+
+   pAreas = ( AREAP * ) hb_xgrab( sizeof( AREAP ) * nSize );
+   pAreas[ nCount++ ] = pChild;
+
+   /* breadth-first search, each area is visited only once */
+   while( nPos < nCount && ! fCyclic )
+   {
+      AREAP pCurrArea = pAreas[ nPos++ ];
+
+      if( pCurrArea == pArea )
+         fCyclic = HB_TRUE;
+      else
+      {
+         LPDBRELINFO lpdbRelation;
+
+         for( lpdbRelation = pCurrArea->lpdbRelations; lpdbRelation;
+              lpdbRelation = lpdbRelation->lpdbriNext )
+         {
+            AREAP pRelArea = lpdbRelation->lpaChild;
+            HB_SIZE n = 0;
+
+            if( pRelArea )
+            {
+               while( n < nCount && pAreas[ n ] != pRelArea )
+                  ++n;
+            }
+            if( pRelArea && n == nCount )
+            {
+               if( nCount == nSize )
+               {
+                  nSize += nSize >> 1;
+                  pAreas = ( AREAP * ) hb_xrealloc( pAreas, sizeof( AREAP ) * nSize );
+               }
+               pAreas[ nCount++ ] = pRelArea;
+            }
+         }
+      }
+   }
+   hb_xfree( pAreas );
+
+   return fCyclic;
+}
+
 HB_FUNC( DBSETRELATION )
 {
    AREAP pArea = ( AREAP ) hb_rddGetCurrentWorkAreaPointer();
@@ -1805,7 +1857,7 @@ HB_FUNC( DBSETRELATION )
       else
          pChildArea = ( AREAP ) hb_rddGetWorkAreaPointer( hb_parni( 1 ) );
 
-      if( pArea == pChildArea )
+      if( pChildArea && hb_dbRelIsCyclic( pArea, pChildArea ) )
          hb_errRT_DBCMD( EG_ARG, EDBCMD_REL_SAMEALIAS, NULL, HB_ERR_FUNCNAME );
 #ifdef HB_CLP_STRICT
       else if( ! pChildArea || ! pBlock )
