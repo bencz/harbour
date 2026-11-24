@@ -7,6 +7,13 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 10:06 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed deadlock in hb_threadMutexSyncWait() (used by __clsSyncWait())
+      when the sync mutex is the same mutex the thread waits for. Its
+      internal critical section was locked second time to release the own
+      lock of the sync mutex.
+
 2026-11-24 09:59 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed lost notifications when threads wait for notifications

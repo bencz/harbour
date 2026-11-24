@@ -1967,16 +1967,20 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
 
       if( ulMilliSec )
       {
-         /* release own lock from sync mutex */
+         /* release own lock from sync mutex, its internal critical section
+          * is already locked when it's the same mutex we are waiting for
+          */
          if( pSyncMutex && HB_THREAD_EQUAL( pSyncMutex->owner, HB_THREAD_SELF() ) )
          {
-            HB_CRITICAL_LOCK( pSyncMutex->mutex );
+            if( pSyncMutex != pMutex )
+               HB_CRITICAL_LOCK( pSyncMutex->mutex );
             lock_count = pSyncMutex->lock_count;
             pSyncMutex->lock_count = 0;
             pSyncMutex->owner = ( HB_THREAD_ID ) 0;
             if( pSyncMutex->lockers )
                HB_COND_SIGNAL( pSyncMutex->cond_l );
-            HB_CRITICAL_UNLOCK( pSyncMutex->mutex );
+            if( pSyncMutex != pMutex )
+               HB_CRITICAL_UNLOCK( pSyncMutex->mutex );
          }
 
          if( ulMilliSec == HB_THREAD_INFINITE_WAIT )
