@@ -71,6 +71,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES7()              IS ".F./.T./.T./.T."
       HBTEST DO_MTTES8()              IS "4/.T."
       HBTEST DO_MTTES9()              IS "ok/.T./.F."
+      HBTEST DO_MTTES10()             IS "OK"
    ENDIF
 #endif
 
@@ -400,6 +401,40 @@ STATIC FUNCTION thSubTimed3( mtx )
    hb_mutexSubscribe( mtx, 1, @xValue )
 
    RETURN { xValue, hb_MilliSeconds() - nStart }
+
+/* hb_mutexSubscribeNow() clearing the queue while other threads
+   send notifications */
+STATIC FUNCTION DO_MTTES10()
+
+   LOCAL mtx, aThreads := {}, aStop := { .F. }, i
+
+   mtx := hb_mutexCreate()
+   FOR i := 1 TO 4
+      AAdd( aThreads, hb_threadStart( @thNotifyLoop(), mtx, aStop ) )
+      AAdd( aThreads, hb_threadStart( @thSubNowLoop(), mtx, aStop ) )
+   NEXT
+   hb_idleSleep( 0.3 )
+   hb_gcAll( .T. )
+   aStop[ 1 ] := .T.
+   AEval( aThreads, {| x | hb_threadJoin( x ) } )
+
+   RETURN "OK"
+
+STATIC PROCEDURE thNotifyLoop( mtx, aStop )
+
+   DO WHILE ! aStop[ 1 ]
+      hb_mutexNotify( mtx, { 1 } )
+   ENDDO
+
+   RETURN
+
+STATIC PROCEDURE thSubNowLoop( mtx, aStop )
+
+   DO WHILE ! aStop[ 1 ]
+      hb_mutexSubscribeNow( mtx, 0.001 )
+   ENDDO
+
+   RETURN
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 

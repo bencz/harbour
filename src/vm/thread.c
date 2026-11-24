@@ -2424,17 +2424,25 @@ PHB_ITEM hb_threadMutexSubscribe( PHB_ITEM pItem, HB_BOOL fClear )
 #else
       HB_STACK_TLS_PRELOAD
       int lock_count = 0;
+      PHB_ITEM pQueue = fClear ? hb_itemArrayNew( 0 ) : NULL;
 
       hb_vmUnlock();
       HB_CRITICAL_LOCK( pMutex->mutex );
 
-      if( fClear && pMutex->events )
+      if( pQueue && pMutex->events )
       {
+         /* the queue is replaced by new empty array allocated before the
+          * mutex was locked and old one is released when the mutex is
+          * unlocked. pMutex->events cannot be cleared because other threads
+          * may use it after they unlocked the mutex in
+          * hb_thredMutexEventInit() and it's a GC item which cannot be
+          * dropped without releasing it
+          */
          hb_vmLockForce();
-         hb_itemMove( hb_stackAllocItem(), pMutex->events );
-         pMutex->events = NULL;
+         hb_itemSwap( pQueue, pMutex->events );
          HB_CRITICAL_UNLOCK( pMutex->mutex );
-         hb_stackPop();
+         hb_itemRelease( pQueue );
+         pQueue = NULL;
          hb_vmUnlock();
          HB_CRITICAL_LOCK( pMutex->mutex );
       }
@@ -2506,6 +2514,9 @@ PHB_ITEM hb_threadMutexSubscribe( PHB_ITEM pItem, HB_BOOL fClear )
       HB_CRITICAL_UNLOCK( pMutex->mutex );
       hb_vmLock();
 
+      if( pQueue )
+         hb_itemRelease( pQueue );
+
       if( pResult )
       {
          pResult = hb_itemNew( pResult );
@@ -2541,17 +2552,25 @@ PHB_ITEM hb_threadMutexTimedSubscribe( PHB_ITEM pItem, HB_ULONG ulMilliSec, HB_B
 #else
       HB_STACK_TLS_PRELOAD
       int lock_count = 0;
+      PHB_ITEM pQueue = fClear ? hb_itemArrayNew( 0 ) : NULL;
 
       hb_vmUnlock();
       HB_CRITICAL_LOCK( pMutex->mutex );
 
-      if( fClear && pMutex->events )
+      if( pQueue && pMutex->events )
       {
+         /* the queue is replaced by new empty array allocated before the
+          * mutex was locked and old one is released when the mutex is
+          * unlocked. pMutex->events cannot be cleared because other threads
+          * may use it after they unlocked the mutex in
+          * hb_thredMutexEventInit() and it's a GC item which cannot be
+          * dropped without releasing it
+          */
          hb_vmLockForce();
-         hb_itemMove( hb_stackAllocItem(), pMutex->events );
-         pMutex->events = NULL;
+         hb_itemSwap( pQueue, pMutex->events );
          HB_CRITICAL_UNLOCK( pMutex->mutex );
-         hb_stackPop();
+         hb_itemRelease( pQueue );
+         pQueue = NULL;
          hb_vmUnlock();
          HB_CRITICAL_LOCK( pMutex->mutex );
       }
@@ -2649,6 +2668,9 @@ PHB_ITEM hb_threadMutexTimedSubscribe( PHB_ITEM pItem, HB_ULONG ulMilliSec, HB_B
 
       HB_CRITICAL_UNLOCK( pMutex->mutex );
       hb_vmLock();
+
+      if( pQueue )
+         hb_itemRelease( pQueue );
 
       if( pResult )
       {

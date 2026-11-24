@@ -7,6 +7,22 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 10:20 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed hb_mutexSubscribeNow() (hb_threadMutexSubscribe() and
+      hb_threadMutexTimedSubscribe() with fClear parameter). It removed
+      the notification queue of the mutex and dropped the GC item which
+      kept it without releasing it. Other thread which sent notification
+      could use removed queue causing crash (always in a few milliseconds
+      when other threads were sending notifications) and GC reported
+      BASE/1302 error. Now the queue is replaced by new empty array
+      allocated before the mutex is locked and old one is released when
+      the mutex is unlocked.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for hb_mutexSubscribeNow() used when other threads send
+      notifications
+
 2026-11-24 10:06 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed deadlock in hb_threadMutexSyncWait() (used by __clsSyncWait())
