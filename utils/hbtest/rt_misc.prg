@@ -1083,6 +1083,8 @@ PROCEDURE Main_MISC()
    HBTEST TSetDec( 70000 )                   IS "2020/2"
    HBTEST TSetDec( -1 )                      IS "2020/2"
    HBTEST TSetDec( 65535 )                   IS "OK/65535"
+   HBTEST TSetDec( 10 ^ 20 )                 IS "2020/2"
+   HBTEST TSetDec( -( 10 ^ 20 ) )            IS "2020/2"
 
    /* hb_HDelAt() with position out of range */
    HBTEST THDelAt( 5 )                       IS "BASE/1187/HB_HDELAT"

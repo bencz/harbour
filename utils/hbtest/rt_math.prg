@@ -674,6 +674,14 @@ PROCEDURE Main_MATH()
    HBTEST &( "0xFFFFFFFFFFFFFFFF" )                              IS -1
 #endif
 
+   /* numbers out of integer range are saturated when converted to
+      integer, compile time and runtime results are the same */
+   HBTEST Asc( Chr( 100000000000000000000 ) )               IS 255
+   HBTEST Asc( Chr( -100000000000000000000 ) )              IS 0
+   HBTEST Asc( &( "Chr( 100000000000000000000 )" ) )        IS 255
+   HBTEST hb_bitAnd( 100000000000000000000, 255 )           IS 255
+   HBTEST TChrNum( 100000000000000000000 )                  IS 255
+
    /* additional parameters of reduced functions are evaluated */
    HBTEST TFoldArgs()                     IS "4/2/2/.T./-1/A/65/.F./8"
    HBTEST TFoldArgsMacro()                IS "65/A/2/A/.F./4/-1/.T./.T./9"
@@ -849,6 +857,9 @@ STATIC FUNCTION TRandGen( nCount )
 
    RETURN hb_ntos( nSum1 ) + "/" + hb_ntos( nSum2 ) + "/" + hb_ntos( nSum3 ) + "/" + ;
           hb_ntos( nSum4 ) + "/" + hb_ntos( nCheck )
+
+STATIC FUNCTION TChrNum( n )
+   RETURN Asc( Chr( n ) )
 
 STATIC FUNCTION TFoldArgs()
 

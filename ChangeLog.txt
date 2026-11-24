@@ -7,6 +7,24 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:39 UTC-0300 Alexandre Bencz
+  * include/hbdefs.h
+    ! HB_CAST_INT(), HB_CAST_LONG(), HB_CAST_LONGLONG(), HB_CAST_MAXINT()
+      and HB_CAST_ISIZ() used by hb_itemGetN*(), hb_parn*() and compile
+      time optimizations saturate double values out of HB_MAXINT range to
+      the limits of given integer type and convert NaN to 0. Conversion
+      of such values was undefined behavior in C and the results were
+      platform dependent, e.g. on x86 Chr( 1e20 ) was Chr( 0 ) and
+      Set( _SET_DECIMALS, 1e20 ) set 0 decimal places without error.
+      Values in HB_MAXINT range are converted as before.
+
+  * src/common/expropt1.c
+    ! use HB_CAST_MAXINT() in hb_compExprAsLongNum()
+
+  * utils/hbtest/rt_math.prg
+  * utils/hbtest/rt_misc.prg
+    + added tests for numbers out of integer range
+
 2026-11-24 13:30 UTC-0300 Alexandre Bencz
   * include/hbexprb.c
     ! functions are reduced at compile time only when they are called

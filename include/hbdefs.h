@@ -497,11 +497,28 @@ typedef HB_U32       HB_SYMCNT;
 #define HB_LIM_INT32(l)       ( INT32_MIN <= (l) && (l) <= INT32_MAX )
 #define HB_LIM_INT64(l)       ( INT64_MIN <= (l) && (l) <= INT64_MAX )
 
-#define HB_CAST_INT( d )      ( ( int ) ( HB_MAXINT ) ( d ) )
-#define HB_CAST_LONG( d )     ( ( long ) ( HB_MAXINT ) ( d ) )
-#define HB_CAST_LONGLONG( d ) ( ( HB_LONGLONG ) ( d ) )
-#define HB_CAST_MAXINT( d )   ( ( HB_MAXINT ) ( d ) )
-#define HB_CAST_ISIZ( d )     ( ( HB_ISIZ ) ( HB_MAXINT ) ( d ) )
+/* conversion of double value out of HB_MAXINT range (or NaN) to integer
+   type is undefined behavior in C so such values are saturated to the
+   limits of given type (NaN is converted to 0), values in HB_MAXINT range
+   are converted to HB_MAXINT and then to given type like before.
+   HB_VMLONG_MIN is power of 2 so it is exact double value and there is
+   no need to use long double ( HB_MAXDBL ) like in HB_DBL_LIM_LONG() */
+#define HB_CAST_DBL_SAT( d, type, min, max ) \
+            ( ( ( double ) HB_VMLONG_MIN <= ( d ) && \
+                ( d ) < -( ( double ) HB_VMLONG_MIN ) ) ? \
+              ( type ) ( HB_MAXINT ) ( d ) : \
+              ( ( d ) > 0 ? ( type ) ( max ) : \
+                ( ( d ) < 0 ? ( type ) ( min ) : ( type ) 0 ) ) )
+
+#define HB_CAST_INT( d )      HB_CAST_DBL_SAT( d, int, INT_MIN, INT_MAX )
+#define HB_CAST_LONG( d )     HB_CAST_DBL_SAT( d, long, LONG_MIN, LONG_MAX )
+#define HB_CAST_LONGLONG( d ) HB_CAST_DBL_SAT( d, HB_LONGLONG, LONGLONG_MIN, LONGLONG_MAX )
+#define HB_CAST_MAXINT( d )   HB_CAST_DBL_SAT( d, HB_MAXINT, HB_VMLONG_MIN, HB_VMLONG_MAX )
+#if defined( HB_OS_WIN_64 )
+#  define HB_CAST_ISIZ( d )   HB_CAST_DBL_SAT( d, HB_ISIZ, LONGLONG_MIN, LONGLONG_MAX )
+#else
+#  define HB_CAST_ISIZ( d )   HB_CAST_DBL_SAT( d, HB_ISIZ, LONG_MIN, LONG_MAX )
+#endif
 
 /*
  * It's a hack for compilers which don't support LL suffix for LONGLONG
