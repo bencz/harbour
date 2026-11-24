@@ -7,6 +7,18 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 14:31 UTC-0300 Alexandre Bencz
+  * src/common/expropt2.c
+    ! fixed compile time optimization of comparison with NIL used by
+      compiler and macro compiler. Array and hash literals and codeblocks
+      were removed even if they had side effects or generated runtime
+      errors, e.g. n++ was not executed in NIL == { n++ }, NIL == { .T. => 1 }
+      did not generate error and macro in NIL == {|| &v } was not
+      evaluated. Now comparison is optimized only for constant values.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for comparison of NIL with array and hash literals
+
 2026-11-24 14:27 UTC-0300 Alexandre Bencz
   * src/common/hbdate.c
     ! fixed overflow in hb_dateJulianDOW() for the greatest julian dates

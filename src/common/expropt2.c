@@ -1107,6 +1107,17 @@ PHB_EXPR hb_compExprReduceIN( PHB_EXPR pSelf, HB_COMP_DECL )
    return pSelf;
 }
 
+/* check if expression is constant value different than NIL, it is
+ * used to reduce comparison with NIL, array and hash literals and
+ * codeblocks with early macro substitution are removed only when they
+ * are constant values, e.g. n++ has to be evaluated in NIL == { n++ }
+ */
+static HB_BOOL hb_compExprIsNotNilConst( PHB_EXPR pExpr )
+{
+   return pExpr->ExprType == HB_ET_FUNREF ||
+          ( pExpr->ExprType != HB_ET_NIL && hb_compExprIsConst( pExpr ) );
+}
+
 PHB_EXPR hb_compExprReduceNE( PHB_EXPR pSelf, HB_COMP_DECL )
 {
    PHB_EXPR pLeft, pRight;
@@ -1249,25 +1260,9 @@ PHB_EXPR hb_compExprReduceNE( PHB_EXPR pSelf, HB_COMP_DECL )
       HB_COMP_EXPR_FREE( pRight );
    }
    else if( ( pLeft->ExprType == HB_ET_NIL &&
-              ( pRight->ExprType == HB_ET_NUMERIC ||
-                pRight->ExprType == HB_ET_LOGICAL ||
-                pRight->ExprType == HB_ET_DATE ||
-                pRight->ExprType == HB_ET_TIMESTAMP ||
-                pRight->ExprType == HB_ET_STRING ||
-                pRight->ExprType == HB_ET_CODEBLOCK ||
-                pRight->ExprType == HB_ET_ARRAY ||
-                pRight->ExprType == HB_ET_HASH ||
-                pRight->ExprType == HB_ET_FUNREF ) ) ||
+              hb_compExprIsNotNilConst( pRight ) ) ||
             ( pRight->ExprType == HB_ET_NIL &&
-              ( pLeft->ExprType == HB_ET_NUMERIC ||
-                pLeft->ExprType == HB_ET_LOGICAL ||
-                pLeft->ExprType == HB_ET_DATE ||
-                pLeft->ExprType == HB_ET_TIMESTAMP ||
-                pLeft->ExprType == HB_ET_STRING ||
-                pLeft->ExprType == HB_ET_CODEBLOCK ||
-                pLeft->ExprType == HB_ET_ARRAY ||
-                pLeft->ExprType == HB_ET_HASH ||
-                pLeft->ExprType == HB_ET_FUNREF ) ) )
+              hb_compExprIsNotNilConst( pLeft ) ) )
    {
       HB_COMP_EXPR_FREE( pLeft );
       HB_COMP_EXPR_FREE( pRight );
@@ -1782,25 +1777,9 @@ PHB_EXPR hb_compExprReduceEQ( PHB_EXPR pSelf, HB_COMP_DECL )
       HB_COMP_EXPR_FREE( pRight );
    }
    else if( ( pLeft->ExprType == HB_ET_NIL &&
-              ( pRight->ExprType == HB_ET_NUMERIC ||
-                pRight->ExprType == HB_ET_LOGICAL ||
-                pRight->ExprType == HB_ET_DATE ||
-                pRight->ExprType == HB_ET_TIMESTAMP ||
-                pRight->ExprType == HB_ET_STRING ||
-                pRight->ExprType == HB_ET_CODEBLOCK ||
-                pRight->ExprType == HB_ET_ARRAY ||
-                pRight->ExprType == HB_ET_HASH ||
-                pRight->ExprType == HB_ET_FUNREF ) ) ||
+              hb_compExprIsNotNilConst( pRight ) ) ||
             ( pRight->ExprType == HB_ET_NIL &&
-              ( pLeft->ExprType == HB_ET_NUMERIC ||
-                pLeft->ExprType == HB_ET_LOGICAL ||
-                pLeft->ExprType == HB_ET_DATE ||
-                pLeft->ExprType == HB_ET_TIMESTAMP ||
-                pLeft->ExprType == HB_ET_STRING ||
-                pLeft->ExprType == HB_ET_CODEBLOCK ||
-                pLeft->ExprType == HB_ET_ARRAY ||
-                pLeft->ExprType == HB_ET_HASH ||
-                pLeft->ExprType == HB_ET_FUNREF ) ) )
+              hb_compExprIsNotNilConst( pLeft ) ) )
    {
       HB_COMP_EXPR_FREE( pLeft );
       HB_COMP_EXPR_FREE( pRight );

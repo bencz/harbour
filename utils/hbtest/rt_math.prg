@@ -692,6 +692,10 @@ PROCEDURE Main_MATH()
    HBTEST Len( { { NIL => 1 } } )         IS "E 2 BASE 1133 Bound error (array assign) OS:0 #:0 A:3:H:;U:NIL;N:1 "
    HBTEST { { 1 => 2, "a" => { 3 } }, 5 }[ 2 ] IS 5
 
+   /* comparison with NIL evaluates array and hash literals with side effects */
+   HBTEST TNilCmp()                       IS ".F./1/.T./2/.F./3/.T./3/.F./3"
+   HBTEST NIL == { .T. => 1 }             IS "E 2 BASE 1133 Bound error (array assign) OS:0 #:0 A:3:H:;L:.T.;N:1 "
+
 #endif
 
 #ifdef __HARBOUR__
@@ -879,6 +883,18 @@ STATIC FUNCTION TArrLitIdx()
    cResult += hb_ntos( { 1, 2, n++ }[ 2 ] ) + "/" + hb_ntos( n ) + "/"
    cResult += hb_ntos( { 1, 2, 3 }[ 3 ] ) + "/" + { "x", { 1 }, {|| 2 } }[ 1 ] + "/"
    cResult += hb_ntos( &( "{ p_nIdx++, 5 }[ 2 ]" ) ) + "/" + hb_ntos( p_nIdx )
+
+   RETURN cResult
+
+STATIC FUNCTION TNilCmp()
+
+   LOCAL n := 0, cResult
+
+   cResult := hb_ValToStr( NIL == { n++ } ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_ValToStr( NIL != { 1 => n++ } ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_ValToStr( { { n++ } } == NIL ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_ValToStr( NIL != { 1, "a", { 2 } } ) + "/" + hb_ntos( n ) + "/"
+   cResult += hb_ValToStr( NIL == {|| n++ } ) + "/" + hb_ntos( n )
 
    RETURN cResult
 
