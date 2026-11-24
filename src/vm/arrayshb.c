@@ -44,11 +44,13 @@
  *
  */
 
+#include "hbvmint.h"
 #include "hbapi.h"
 #include "hbstack.h"
 #include "hbapiitm.h"
 #include "hbapierr.h"
 #include "hbapilng.h"
+#include "hbpcode.h"
 
 /* This function creates an array item using 'iDimension' as an index
  * to retrieve the number of elements from the parameter list.
@@ -234,10 +236,26 @@ HB_FUNC( AFILL )
    }
    else
 #ifdef HB_CLP_STRICT
+   {
       /* NOTE: In CA-Cl*pper AFill() is written in a manner that it will
                call AEval() to do the job, so the error (if any) will also be
                thrown by AEval().  [vszakats] */
-      hb_errRT_BASE( EG_ARG, 2017, NULL, "AEVAL", 0 );
+      /* AEval() is called as AEval( aArray, {|...| ... }, nStart, nCount )
+         so the error has such arguments */
+      static const HB_BYTE s_pCode[ 2 ] = { HB_P_PUSHNIL, HB_P_ENDBLOCK };
+      PHB_ITEM pBlock = hb_itemNew( NULL );
+
+      /* this codeblock is never evaluated, it is only argument of error */
+      pBlock->item.asBlock.value = hb_codeblockNew( s_pCode, 0, NULL, NULL, 0 );
+      pBlock->type = HB_IT_BLOCK;
+      pBlock->item.asBlock.paramcnt = 0;
+      pBlock->item.asBlock.lineno = 0;
+      pBlock->item.asBlock.hclass = 0;
+      pBlock->item.asBlock.method = 0;
+      hb_errRT_BASE( EG_ARG, 2017, NULL, "AEVAL", 4, hb_paramError( 1 ), pBlock,
+                     hb_paramError( 3 ), hb_paramError( 4 ) );
+      hb_itemRelease( pBlock );
+   }
 #else
       hb_errRT_BASE( EG_ARG, 6004, NULL, HB_ERR_FUNCNAME, HB_ERR_ARGS_BASEPARAMS );
 #endif

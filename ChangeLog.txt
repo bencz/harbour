@@ -8,6 +8,13 @@
    See license at the end of file. */
 
 2026-11-24 15:16 UTC-0300 Alexandre Bencz
+  * src/vm/arrayshb.c
+    ! AFill() with wrong array parameter in HB_CLP_STRICT builds generates
+      AEVAL/2017 error with the same arguments as CA-Cl*pper, i.e. the
+      arguments of AEval( aArray, {|| ... }, nStart, nCount ) called by
+      CA-Cl*pper AFill()
+
+2026-11-24 15:16 UTC-0300 Alexandre Bencz
   * utils/hbtest/rt_str.prg
     * updated expected StrTran() errors in HB_CLP_STRICT builds, they
       do not have arguments
