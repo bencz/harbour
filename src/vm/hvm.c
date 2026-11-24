@@ -663,8 +663,17 @@ void hb_vmTerminateThreads( void )
       hb_vmThreadRequest |= HB_THREQUEST_QUIT;
       --s_iRunningCount;
 
+      /* s_vmMtx cannot be locked when mutexes are locked by
+       * hb_threadMutexUnlockAll() and hb_threadMutexUnsubscribeAll()
+       * because threads which keep these mutexes may lock s_vmMtx
+       * (e.g. in hb_vmLockForce()), it would be deadlock
+       */
+      HB_VM_UNLOCK();
+
       hb_threadMutexUnlockAll();
       hb_threadMutexUnsubscribeAll();
+
+      HB_VM_LOCK();
 
       hb_threadCondBroadcast( &s_vmCond );
 

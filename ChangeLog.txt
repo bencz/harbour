@@ -7,6 +7,15 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 08:56 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    ! fixed possible deadlock at application exit in
+      hb_vmTerminateThreads(). It called hb_threadMutexUnlockAll() and
+      hb_threadMutexUnsubscribeAll(), which lock mutexes, with locked
+      s_vmMtx, but other threads lock s_vmMtx when they keep these
+      mutexes, i.e. in hb_mutexNotify() and hb_mutexSubscribe().
+      Now s_vmMtx is unlocked when these functions are called.
+
 2026-11-24 08:33 UTC-0300 Alexandre Bencz
   * src/vm/task.c
     ! fixed hb_taskWait() used by builds with HB_TASK_THREAD (cooperative
