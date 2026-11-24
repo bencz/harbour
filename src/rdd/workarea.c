@@ -1218,7 +1218,8 @@ static HB_ERRCODE hb_waLocate( AREAP pArea, HB_BOOL fContinue )
 static HB_ERRCODE hb_waTrans( AREAP pArea, LPDBTRANSINFO pTransInfo )
 {
    HB_LONG lNext = 1;
-   HB_BOOL fEof, fFor;
+   HB_BOOL fEof, fFor, fRecLimit;
+   HB_ULONG ulRecCount = 0;
 
    HB_TRACE( HB_TR_DEBUG, ( "hb_waTrans(%p, %p)", ( void * ) pArea, ( void * ) pTransInfo ) );
 
@@ -1240,6 +1241,12 @@ static HB_ERRCODE hb_waTrans( AREAP pArea, LPDBTRANSINFO pTransInfo )
          return HB_FAILURE;
    }
 
+   /* records appended to the source area during the transfer, e.g.
+    * by APPEND FROM the same table, are not transferred, otherwise
+    * the loop would never end */
+   fRecLimit = ( pTransInfo->uiFlags & DBTF_RECLIMIT ) != 0 &&
+               SELF_RECCOUNT( pArea, &ulRecCount ) == HB_SUCCESS;
+
    /* TODO: use SKIPSCOPE() method and fRest parameter */
 
    for( ;; )
@@ -1249,6 +1256,22 @@ static HB_ERRCODE hb_waTrans( AREAP pArea, LPDBTRANSINFO pTransInfo )
 
       if( fEof )
          break;
+
+      if( fRecLimit )
+      {
+         HB_ULONG ulRecNo;
+
+         if( SELF_RECNO( pArea, &ulRecNo ) != HB_SUCCESS )
+            return HB_FAILURE;
+         if( ulRecNo > ulRecCount )
+         {
+            if( pTransInfo->dbsci.itmRecID )
+               break;
+            if( SELF_SKIP( pArea, 1 ) != HB_SUCCESS )
+               return HB_FAILURE;
+            continue;
+         }
+      }
 
       if( pTransInfo->dbsci.itmCobWhile )
       {

@@ -7,6 +7,25 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 13:17 UTC-0300 Alexandre Bencz
+  * include/hbapirdd.h
+  * include/hbusrrdd.ch
+    + added DBTF_RECLIMIT transfer flag: records appended to the source
+      area during transfer are not transferred
+
+  * src/rdd/wafunc.c
+  * src/rdd/workarea.c
+    ! fixed APPEND FROM the same table opened in shared mode. It never
+      ended because records appended to the table were read again from
+      the source area. Now hb_rddTransRecords() sets DBTF_RECLIMIT when
+      it imports records from DBF based table and hb_waTrans() skips
+      records with RecNo() greater than RecCount() at the beginning of
+      the transfer. Records appended to the source table by other
+      processes during such transfer are not imported either.
+
+  * utils/hbtest/rt_misc.prg
+    + added test for APPEND FROM the same table
+
 2026-11-24 13:03 UTC-0300 Alexandre Bencz
   * src/vm/set.c
     ! fixed SET DECIMALS with values greater than 65535. The number of

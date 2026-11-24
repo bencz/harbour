@@ -1174,9 +1174,20 @@ HB_ERRCODE hb_rddTransRecords( AREAP pArea,
                                     szCpId, ulConnection, NULL, pDelim );
          if( errCode == HB_SUCCESS )
          {
+            HB_USHORT uiDbfID;
+
             lpaClose = ( AREAP ) hb_rddGetCurrentWorkAreaPointer();
             errCode = hb_dbTransStruct( lpaClose, pArea, &dbTransInfo,
                                         NULL, pFields );
+            /* APPEND FROM the same table would never end if records
+             * appended to the source were transferred again. In DBF RDDs
+             * records existing at the start of the transfer have
+             * RecNo() <= RecCount(), so records with greater numbers,
+             * appended during the transfer, can be skipped
+             */
+            if( hb_rddFindNode( "DBF", &uiDbfID ) &&
+                hb_rddIsDerivedFrom( lpaClose->rddID, uiDbfID ) )
+               dbTransInfo.uiFlags |= DBTF_RECLIMIT;
          }
       }
    }

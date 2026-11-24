@@ -1076,6 +1076,9 @@ PROCEDURE Main_MISC()
    /* relations which would create cycle are not allowed */
    HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
 
+   /* APPEND FROM the same table opened in shared mode */
+   HBTEST TAppSelf()                         IS "6/1/2/3/1/2/3"
+
    /* SET DECIMALS cannot exceed the range of decimal places in items */
    HBTEST TSetDec( 70000 )                   IS "2020/2"
    HBTEST TSetDec( -1 )                      IS "2020/2"
@@ -1097,6 +1100,32 @@ PROCEDURE Main_MISC()
    RETURN
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION TAppSelf()
+
+   LOCAL nArea := Select(), cResult
+
+   dbCreate( "_hbapp", { { "K", "N", 5, 0 } } )
+   USE _hbapp NEW SHARED
+   dbAppend()
+   FIELD->K := 1
+   dbAppend()
+   FIELD->K := 2
+   dbAppend()
+   FIELD->K := 3
+   dbCommit()
+   APPEND FROM _hbapp
+   cResult := hb_ntos( RecCount() )
+   dbGoTop()
+   DO WHILE ! Eof()
+      cResult += "/" + hb_ntos( FIELD->K )
+      dbSkip()
+   ENDDO
+   dbCloseArea()
+   FErase( "_hbapp.dbf" )
+   dbSelectArea( nArea )
+
+   RETURN cResult
 
 STATIC FUNCTION TSetDec( nDec )
 
