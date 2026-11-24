@@ -1363,6 +1363,9 @@ static HB_EXPR_FUNC( hb_compExprUseArrayAt )
                          */
                         PHB_EXPR pNew = HB_COMP_EXPR_NEW( HB_ET_NONE );
                         memcpy( pNew, pExpr, sizeof( HB_EXPR ) );
+                        /* do not keep the pointer to the next element
+                           of the array which is released below */
+                        pNew->pNext = NULL;
                         /* This will suppress releasing of memory occupied by components of
                          * the expression - we have just copied them into the new expression.
                          * This method is simpler then traversing the list and releasing all

@@ -7,6 +7,12 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 15:11 UTC-0300 Alexandre Bencz
+  * include/hbexprb.c
+    * do not keep pointer to the next element of array literal in the
+      element extracted by compile time optimization of { ... }[ n ],
+      the next element is released
+
 2026-11-24 15:06 UTC-0300 Alexandre Bencz
   * utils/hbtest/rt_hvm.prg
   * utils/hbtest/rt_str.prg
