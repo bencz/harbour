@@ -228,6 +228,7 @@ extern HB_EXPORT HB_BOOL hb_xvmMultByInt( HB_LONG lValue );
 extern HB_EXPORT HB_BOOL hb_xvmDivideByInt( HB_LONG lValue );
 extern HB_EXPORT HB_BOOL hb_xvmModulusByInt( HB_LONG lValue );
 extern HB_EXPORT HB_BOOL hb_xvmAddInt( HB_LONG lValue );
+extern HB_EXPORT HB_BOOL hb_xvmMinusInt( HB_LONG lValue );
 extern HB_EXPORT void hb_xvmLocalSetInt( int iLocal, HB_LONG lValue );
 /*extern HB_EXPORT void hb_xvmLocalSetStr( int iLocal, const char * pValue, HB_SIZE nLen );*/
 extern HB_EXPORT void hb_xvmPushFuncSymbol( PHB_SYMB pSym );
@@ -242,6 +243,8 @@ extern HB_EXPORT HB_BOOL hb_xvmGreaterEqualThenInt( HB_LONG lValue );
 extern HB_EXPORT HB_BOOL hb_xvmGreaterEqualThenIntIs( HB_LONG lValue, HB_BOOL * fValue );
 extern HB_EXPORT HB_BOOL hb_xvmEqualInt( HB_LONG lValue );
 extern HB_EXPORT HB_BOOL hb_xvmEqualIntIs( HB_LONG lValue, HB_BOOL * fValue );
+extern HB_EXPORT HB_BOOL hb_xvmExactlyEqualInt( HB_LONG lValue );
+extern HB_EXPORT HB_BOOL hb_xvmExactlyEqualIntIs( HB_LONG lValue, HB_BOOL * fValue );
 extern HB_EXPORT HB_BOOL hb_xvmNotEqualInt( HB_LONG lValue );
 extern HB_EXPORT HB_BOOL hb_xvmNotEqualIntIs( HB_LONG lValue, HB_BOOL * fValue );
 

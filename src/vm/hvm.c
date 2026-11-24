@@ -10523,6 +10523,46 @@ HB_BOOL hb_xvmEqualIntIs( HB_LONG lValue, HB_BOOL * pfValue )
    HB_XVM_RETURN
 }
 
+/* exactly equal comparison with integer constant, numbers and NIL are
+ * compared in the same way as by hb_xvmEqualInt[Is]() but other types,
+ * i.e. objects with overloaded == operator, are processed by
+ * hb_vmExactlyEqual() like in pcode
+ */
+HB_BOOL hb_xvmExactlyEqualInt( HB_LONG lValue )
+{
+   HB_STACK_TLS_PRELOAD
+   PHB_ITEM pItem;
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_xvmExactlyEqualInt(%ld)", lValue ) );
+
+   pItem = hb_stackItemFromTop( -1 );
+   if( HB_IS_NUMERIC( pItem ) || HB_IS_NIL( pItem ) )
+      return hb_xvmEqualInt( lValue );
+
+   hb_vmPushLong( lValue );
+   hb_vmExactlyEqual();
+
+   HB_XVM_RETURN
+}
+
+HB_BOOL hb_xvmExactlyEqualIntIs( HB_LONG lValue, HB_BOOL * pfValue )
+{
+   HB_STACK_TLS_PRELOAD
+   PHB_ITEM pItem;
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_xvmExactlyEqualIntIs(%ld,%p)", lValue, ( void * ) pfValue ) );
+
+   pItem = hb_stackItemFromTop( -1 );
+   if( HB_IS_NUMERIC( pItem ) || HB_IS_NIL( pItem ) )
+      return hb_xvmEqualIntIs( lValue, pfValue );
+
+   hb_vmPushLong( lValue );
+   if( hb_xvmExactlyEqual() )
+      return HB_TRUE;
+
+   return hb_xvmPopLogical( pfValue );
+}
+
 HB_BOOL hb_xvmNotEqual( void )
 {
    HB_STACK_TLS_PRELOAD
@@ -11146,6 +11186,31 @@ HB_BOOL hb_xvmAddInt( HB_LONG lAdd )
    HB_TRACE( HB_TR_DEBUG, ( "hb_xvmAddInt(%ld)", lAdd ) );
 
    hb_vmAddInt( hb_stackItemFromTop( -1 ), lAdd );
+
+   HB_XVM_RETURN
+}
+
+/* subtract integer constant, numbers are calculated in the same way as
+ * by hb_xvmAddInt() but other types, i.e. objects with overloaded minus
+ * operator, are processed by hb_vmMinus() like in pcode
+ */
+HB_BOOL hb_xvmMinusInt( HB_LONG lValue )
+{
+   HB_STACK_TLS_PRELOAD
+   PHB_ITEM pItem;
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_xvmMinusInt(%ld)", lValue ) );
+
+   pItem = hb_stackItemFromTop( -1 );
+   if( HB_IS_NUMERIC( pItem ) && lValue >= -LONG_MAX )
+      hb_vmAddInt( pItem, -lValue );
+   else
+   {
+      hb_vmPushLong( lValue );
+      pItem = hb_stackItemFromTop( -2 );
+      hb_vmMinus( pItem, pItem, hb_stackItemFromTop( -1 ) );
+      hb_stackPop();
+   }
 
    HB_XVM_RETURN
 }

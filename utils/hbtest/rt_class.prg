@@ -1080,12 +1080,56 @@ PROCEDURE Main_CLASS()
    HBTEST oValue:super:super:super:classname()              IS "HBOBJECT"
    HBTEST oValue:super:super:super:super:classname()        IS "E 13 BASE 1004 Message not found (NVCLASS4:SUPER) OS:0 #:0 A:1:O:NVCLASS4 Object F:S"
 
+   /* Test overloaded operators used with integer constants,
+      -gc3 uses special functions for such expressions in functions */
+
+   oValue := OPERCLASS():new()
+   HBTEST TOperMinus( oValue )                              IS "-(5)"
+   HBTEST TOperPlus( oValue )                               IS "+(5)"
+   HBTEST TOperExactEq( oValue )                            IS "==(5)"
+   HBTEST TOperEq( oValue )                                 IS "=(5)"
+   HBTEST TOperExactEqIf( OPERCLASS2():new() )              IS "Y"
+   HBTEST TOperMinus( "A" )                                 IS "E 1 BASE 1082 Argument error (-) OS:0 #:0 A:2:C:A;N:5 F:S"
+   HBTEST TOperExactEq( {} )                                IS "E 1 BASE 1070 Argument error (==) OS:0 #:0 A:2:A:{.[0].};N:5 F:S"
+   HBTEST TOperMinus( 7 )                                   IS 2
+   HBTEST TOperExactEq( 5 )                                 IS .T.
+   HBTEST TOperExactEq( NIL )                               IS .F.
+
 #endif
 
    RETURN
 
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION TOperMinus( x )
+   RETURN x - 5
+
+STATIC FUNCTION TOperPlus( x )
+   RETURN x + 5
+
+STATIC FUNCTION TOperExactEq( x )
+   RETURN x == 5
+
+STATIC FUNCTION TOperEq( x )
+   RETURN x = 5
+
+STATIC FUNCTION TOperExactEqIf( x )
+   RETURN iif( x == 5, "Y", "N" )
+
+CREATE CLASS OPERCLASS
+EXPORTED:
+   OPERATOR "-"  ARG x INLINE "-("  + hb_ntos( x ) + ")"
+   OPERATOR "+"  ARG x INLINE "+("  + hb_ntos( x ) + ")"
+   OPERATOR "==" ARG x INLINE "==(" + hb_ntos( x ) + ")"
+   OPERATOR "="  ARG x INLINE "=("  + hb_ntos( x ) + ")"
+ENDCLASS
+
+CREATE CLASS OPERCLASS2
+EXPORTED:
+   OPERATOR "==" ARG x INLINE x == 5
+   OPERATOR "="  ARG x INLINE x == NIL
+ENDCLASS
 
 STATIC FUNCTION INSTANCE_DATA( oValue )
 

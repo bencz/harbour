@@ -3728,6 +3728,8 @@ hb_xvmEqual
 hb_xvmEqualInt
 hb_xvmEqualIntIs
 hb_xvmExactlyEqual
+hb_xvmExactlyEqualInt
+hb_xvmExactlyEqualIntIs
 hb_xvmExitProc
 hb_xvmExpEq
 hb_xvmExpEqPop
@@ -3777,6 +3779,7 @@ hb_xvmMemvarAdd
 hb_xvmMinus
 hb_xvmMinusEq
 hb_xvmMinusEqPop
+hb_xvmMinusInt
 hb_xvmModEq
 hb_xvmModEqPop
 hb_xvmModuleName

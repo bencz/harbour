@@ -222,8 +222,10 @@ static int hb_gencc_checkNumAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE nPCo
             return 2;
 
          case HB_P_EQUAL:
-         case HB_P_EXACTLYEQUAL:
             return hb_gencc_checkJumpCondAhead( lValue, pFunc, nPCodePos, cargo, "Equal" );
+
+         case HB_P_EXACTLYEQUAL:
+            return hb_gencc_checkJumpCondAhead( lValue, pFunc, nPCodePos, cargo, "ExactlyEqual" );
 
          case HB_P_NOTEQUAL:
             return hb_gencc_checkJumpCondAhead( lValue, pFunc, nPCodePos, cargo, "NotEqual" );
@@ -269,17 +271,14 @@ static int hb_gencc_checkNumAhead( HB_LONG lValue, PHB_HFUNC pFunc, HB_SIZE nPCo
             return 1;
 
          case HB_P_MINUS:
-            if( lValue > 0 )
-            {
-               fprintf( cargo->yyc, "\tif( hb_xvmAddInt( -%ldL ) ) break;\n", lValue );
-               return 1;
-            }
 #if -LONG_MAX > LONG_MIN
-            else if( lValue < -LONG_MAX )
+            if( lValue < -LONG_MAX )
                break;
 #endif
-            lValue = -lValue;
-            /* fallthrough */
+            /* hb_xvmAddInt( -lValue ) cannot be used because for objects
+               it executes overloaded plus operator instead of minus one */
+            fprintf( cargo->yyc, "\tif( hb_xvmMinusInt( %ldL ) ) break;\n", lValue );
+            return 1;
 
          case HB_P_PLUS:
             fprintf( cargo->yyc, "\tif( hb_xvmAddInt( %ldL ) ) break;\n", lValue );
