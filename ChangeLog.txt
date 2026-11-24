@@ -7,6 +7,16 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 09:07 UTC-0300 Alexandre Bencz
+  * src/vm/task.c
+    ! fixed hb_taskJoin() used by builds with HB_TASK_THREAD. It waited
+      only for running tasks so hb_threadJoin() of thread waiting for
+      mutex, conditional variable or timer returned .F. immediately
+      without waiting for the thread and its result.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for hb_threadJoin() of thread waiting for mutex
+
 2026-11-24 08:56 UTC-0300 Alexandre Bencz
   * src/vm/hvm.c
     ! fixed possible deadlock at application exit in

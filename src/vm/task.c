@@ -832,7 +832,10 @@ int hb_taskJoin( void * pTaskPtr, unsigned long ulMilliSec, void ** pResult )
 
    if( pTask != s_mainTask && pTask != s_currTask )
    {
-      if( ( pTask->state == TASK_INIT || pTask->state == TASK_RUNNING ) &&
+      /* wait also for tasks which are sleeping, i.e. waiting for mutex
+       * or conditional variable, they are not finished yet
+       */
+      if( pTask->state != TASK_DONE && pTask->state != TASK_ZOMBIE &&
           ulMilliSec > 0 )
       {
          s_currTask->joining = pTask;

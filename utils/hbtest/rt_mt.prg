@@ -67,6 +67,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES3()              IS "1/123"
       HBTEST DO_MTTES4()              IS "0/.T./1/2"
       HBTEST DO_MTTES5()              IS "2000/2001000"
+      HBTEST DO_MTTES6()              IS ".T./ok"
    ENDIF
 #endif
 
@@ -248,6 +249,34 @@ STATIC PROCEDURE thSubTimed( mtx, mtxCount, aCount )
          hb_mutexUnlock( mtxCount )
       ENDIF
    ENDDO
+
+   RETURN
+
+/* hb_threadJoin() has to wait for thread which is waiting for mutex */
+STATIC FUNCTION DO_MTTES6()
+
+   LOCAL mtx, th, xResult, lJoin
+
+   mtx := hb_mutexCreate()
+   th := hb_threadStart( @thSubResult(), mtx )
+   hb_idleSleep( 0.05 )
+   hb_threadStart( @thNotifyLater(), mtx )
+   lJoin := hb_threadJoin( th, @xResult )
+
+   RETURN hb_ValToStr( lJoin ) + "/" + hb_ValToStr( xResult )
+
+STATIC FUNCTION thSubResult( mtx )
+
+   LOCAL xValue
+
+   hb_mutexSubscribe( mtx,, @xValue )
+
+   RETURN xValue
+
+STATIC PROCEDURE thNotifyLater( mtx )
+
+   hb_idleSleep( 0.1 )
+   hb_mutexNotify( mtx, "ok" )
 
    RETURN
 
