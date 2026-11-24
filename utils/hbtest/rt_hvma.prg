@@ -646,6 +646,15 @@ PROCEDURE Main_HVMA()
    HBTEST THVMSwitch( -2147483648 )               IS "int32min"
    HBTEST THVMSwitch( 2147483648 )                IS "other"
    HBTEST THVMSwitch( -9223372036854775807 - 1 )  IS "min"
+
+   /* integer constants in functions (-gc3 uses special functions for them)
+      have to be created in the same way as in pcode */
+   HBTEST TIntConstPush()                         IS " 11  1234567890| 11  5000000000| 20          -1234567890| 10          5"
+   HBTEST TIntConstLocal()                        IS " 11  1234567890| 11  5000000000| 20          -1234567890| 10          5"
+   HBTEST RTSTR( TIntConstRet1() )                IS " 11  1234567890"
+   HBTEST RTSTR( TIntConstRet2() )                IS " 10          5"
+   HBTEST RTSTR( TIntConstRet3() )                IS " 11  5000000000"
+   HBTEST TIntConstEdge()                         IS " 20          -2147483648| 20          -2147483648| 20          -1000000000| 11  9999999999| 12  10000000000"
 #endif
 
    RETURN
@@ -654,6 +663,33 @@ STATIC FUNCTION RTSTR( nValue )
    RETURN Str( Len( Str( nValue ) ), 3 ) + " " + Str( nValue )
 
 #ifdef __HARBOUR__
+
+STATIC FUNCTION TIntConstPush()
+   RETURN RTSTR( 1234567890 ) + "|" + RTSTR( 5000000000 ) + "|" + ;
+          RTSTR( -1234567890 ) + "|" + RTSTR( 5 )
+
+STATIC FUNCTION TIntConstLocal()
+   LOCAL n1, n2, n3, n4
+   n1 := 1234567890
+   n2 := 5000000000
+   n3 := -1234567890
+   n4 := 5
+   RETURN RTSTR( n1 ) + "|" + RTSTR( n2 ) + "|" + RTSTR( n3 ) + "|" + RTSTR( n4 )
+
+STATIC FUNCTION TIntConstEdge()
+   LOCAL n
+   n := -2147483648
+   RETURN RTSTR( -2147483648 ) + "|" + RTSTR( n ) + "|" + ;
+          RTSTR( -1000000000 ) + "|" + RTSTR( 9999999999 ) + "|" + RTSTR( 10000000000 )
+
+STATIC FUNCTION TIntConstRet1()
+   RETURN 1234567890
+
+STATIC FUNCTION TIntConstRet2()
+   RETURN 5
+
+STATIC FUNCTION TIntConstRet3()
+   RETURN 5000000000
 
 STATIC FUNCTION THVMSwitch( xValue )
 

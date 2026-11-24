@@ -203,6 +203,7 @@ extern HB_EXPORT HB_BOOL hb_xvmMacroText( void );
 
 extern HB_EXPORT void    hb_xvmPushStringHidden( int iMethod, const char * szText, HB_SIZE nSize );
 extern HB_EXPORT void    hb_xvmPushDouble( double dNumber, int iWidth, int iDec );
+extern HB_EXPORT void    hb_xvmPushIntConst( HB_LONG lValue );
 #ifdef HB_LONG_LONG_OFF
 extern HB_EXPORT void    hb_xvmPushLongLong( double dNumber );
 #else

@@ -1282,11 +1282,11 @@ static HB_GENC_FUNC( hb_p_pushlong )
 
    if( iSkip == 0 )
    {
-      fprintf( cargo->yyc, "#if INT_MAX >= INT32_MAX\n" );
-      fprintf( cargo->yyc, "\thb_xvmPushInteger( %ld );\n", lVal );
-      fprintf( cargo->yyc, "#else\n" );
-      fprintf( cargo->yyc, "\thb_xvmPushLong( %ldL );\n", lVal );
-      fprintf( cargo->yyc, "#endif\n" );
+      /* -2147483648L is unsigned in C90 when long is 32-bit */
+      if( lVal == -2147483647L - 1 )
+         fprintf( cargo->yyc, "\thb_xvmPushIntConst( -2147483647L - 1 );\n" );
+      else
+         fprintf( cargo->yyc, "\thb_xvmPushIntConst( %ldL );\n", lVal );
    }
    return 5 + iSkip;
 }
@@ -1319,7 +1319,7 @@ static HB_GENC_FUNC( hb_p_pushlonglong )
    iSkip = hb_gencc_checkNumAhead( llVal, pFunc, nPCodePos + 9, cargo );
 
    if( iSkip == 0 )
-      fprintf( cargo->yyc, "\thb_xvmPushLong( %ldL );\n", ( long ) llVal );
+      fprintf( cargo->yyc, "\thb_xvmPushIntConst( %ldL );\n", ( long ) llVal );
    fprintf( cargo->yyc, "#else\n" );
    fprintf( cargo->yyc, "\thb_xvmPushLongLong( HB_LL( %s ) );\n",
             hb_numToStr( szBuf, sizeof( szBuf ), llVal ) );

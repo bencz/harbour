@@ -7,6 +7,27 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 06:30 UTC-0300 Alexandre Bencz
+  * include/hbxvm.h
+  * src/harbour.def
+  * src/vm/hvm.c
+    + added hb_xvmPushIntConst() which pushes integer constant in the same
+      way as HB_P_PUSHLONG and HB_P_PUSHLONGLONG pcodes
+    ! fixed integer constants assigned to local variables and returned
+      by -gc3 code (hb_xvmLocalSetInt() and hb_xvmRetInt()). They were
+      always created as HB_IT_LONG items with different width than in
+      pcode
+
+  * src/compiler/gencc.c
+    ! fixed integer constants created by -gc3 code. HB_P_PUSHLONG and
+      HB_P_PUSHLONGLONG constants were created with different width than
+      in pcode so Str() and other functions which use number width gave
+      different results, e.g. Str( 1234567890 ) gave 20 characters in -gc3
+      code and 11 in pcode. hb_xvmPushIntConst() is used now.
+
+  * utils/hbtest/rt_hvma.prg
+    + added tests for integer constants width
+
 2026-11-23 21:19 UTC-0300 Alexandre Bencz
   * src/vm/hvm.c
     ! fixed BREAK in overloaded object operator executed by -gc3 code for

@@ -3820,6 +3820,7 @@ hb_xvmPushBlockShort
 hb_xvmPushDouble
 hb_xvmPushField
 hb_xvmPushFuncSymbol
+hb_xvmPushIntConst
 hb_xvmPushLocal
 hb_xvmPushLocalByRef
 hb_xvmPushLongLong

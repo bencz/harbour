@@ -6901,6 +6901,28 @@ static HB_USHORT hb_vmCalcIntWidth( HB_MAXINT nNumber )
    return iWidth;
 }
 
+/* set integer constant in the same way as HB_P_PUSHLONG and
+ * HB_P_PUSHLONGLONG pcodes create them, it's used by -gc3 code
+ */
+static void hb_vmItemPutIntConst( PHB_ITEM pItem, HB_MAXINT nNumber )
+{
+   if( HB_IS_COMPLEX( pItem ) )
+      hb_itemClear( pItem );
+
+   if( HB_LIM_INT( nNumber ) )
+   {
+      pItem->type = HB_IT_INTEGER;
+      pItem->item.asInteger.value = ( int ) nNumber;
+      pItem->item.asInteger.length = hb_vmCalcIntWidth( nNumber );
+   }
+   else
+   {
+      pItem->type = HB_IT_LONG;
+      pItem->item.asLong.value = nNumber;
+      pItem->item.asLong.length = hb_vmCalcIntWidth( nNumber );
+   }
+}
+
 void hb_vmPushInteger( int iNumber )
 {
    HB_STACK_TLS_PRELOAD
@@ -9806,7 +9828,19 @@ void hb_xvmRetInt( HB_LONG lValue )
 
    HB_TRACE( HB_TR_DEBUG, ( "hb_xvmRetInt(%ld)", lValue ) );
 
-   hb_itemPutNL( hb_stackReturnItem(), lValue );
+   hb_vmItemPutIntConst( hb_stackReturnItem(), lValue );
+}
+
+/* push integer constant in the same way as HB_P_PUSHLONG and
+ * HB_P_PUSHLONGLONG pcodes do it
+ */
+void hb_xvmPushIntConst( HB_LONG lValue )
+{
+   HB_STACK_TLS_PRELOAD
+
+   HB_TRACE( HB_TR_DEBUG, ( "hb_xvmPushIntConst(%ld)", lValue ) );
+
+   hb_vmItemPutIntConst( hb_stackAllocItem(), lValue );
 }
 
 void hb_xvmStatics( PHB_SYMB pSymbol, HB_USHORT uiStatics )
@@ -10174,14 +10208,14 @@ void hb_xvmLocalSetInt( int iLocal, HB_LONG lValue )
 
    if( HB_IS_OBJECT( pLocal ) && hb_objHasOperator( pLocal, HB_OO_OP_ASSIGN ) )
    {
-      hb_vmPushLong( lValue );
+      hb_vmItemPutIntConst( hb_stackAllocItem(), lValue );
       hb_objOperatorCall( HB_OO_OP_ASSIGN, pLocal, pLocal,
                           hb_stackItemFromTop( -1 ), NULL );
       hb_stackPop();
    }
    else
    {
-      hb_itemPutNL( pLocal, lValue );
+      hb_vmItemPutIntConst( pLocal, lValue );
    }
 }
 
