@@ -72,6 +72,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES8()              IS "4/.T."
       HBTEST DO_MTTES9()              IS "ok/.T./.F."
       HBTEST DO_MTTES10()             IS "OK"
+      HBTEST DO_MTTES11()             IS "OK"
    ENDIF
 #endif
 
@@ -433,6 +434,30 @@ STATIC PROCEDURE thSubNowLoop( mtx, aStop )
    DO WHILE ! aStop[ 1 ]
       hb_mutexSubscribeNow( mtx, 0.001 )
    ENDDO
+
+   RETURN
+
+/* hb_threadWait() of array which items are cleared by other thread */
+STATIC FUNCTION DO_MTTES11()
+
+   LOCAL aThreads, thClear, i
+
+   FOR i := 1 TO 50
+      aThreads := { hb_threadStart( {|| hb_idleSleep( 0.002 ) } ), ;
+                    hb_threadStart( {|| hb_idleSleep( 0.003 ) } ) }
+      thClear := hb_threadStart( @thClearItems(), aThreads )
+      hb_threadWait( aThreads, 0.05, .T. )
+      hb_threadJoin( thClear )
+   NEXT
+
+   RETURN "OK"
+
+STATIC PROCEDURE thClearItems( aThreads )
+
+   hb_idleSleep( 0.001 )
+   aThreads[ 1 ] := NIL
+   aThreads[ 2 ] := NIL
+   hb_gcAll( .T. )
 
    RETURN
 

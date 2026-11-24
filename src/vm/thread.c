@@ -1471,20 +1471,25 @@ HB_FUNC( HB_THREADJOIN )
 
       if( pThread->th_h )
       {
+         /* other thread can release the thread state when this thread
+          * is waiting with unlocked HVM so keep reference to it
+          */
+         hb_itemPutPtrGC( hb_stackAllocItem(), pThread );
          hb_vmUnlock();
          fResult = hb_threadJoin( pThread->th_h );
          if( fResult )
             pThread->th_h = 0;
          hb_vmLock();
-      }
-      if( fResult )
-      {
-         if( pThread->pResult )
+         if( fResult )
          {
-            hb_itemParamStoreForward( 2, pThread->pResult );
-            hb_itemRelease( pThread->pResult );
-            pThread->pResult = NULL;
+            if( pThread->pResult )
+            {
+               hb_itemParamStoreForward( 2, pThread->pResult );
+               hb_itemRelease( pThread->pResult );
+               pThread->pResult = NULL;
+            }
          }
+         hb_stackPop();
       }
       hb_retl( fResult );
    }
@@ -1542,14 +1547,21 @@ HB_FUNC( HB_THREADWAIT )
    HB_STACK_TLS_PRELOAD
    HB_ULONG ulMilliSec = HB_THREAD_INFINITE_WAIT;
    PHB_THREADSTATE * pThreads, pAlloc[ HB_THREAD_WAIT_ALLOC ];
+   PHB_ITEM pHold;
    int iThreads = -1;
 
+   /* the array of threads can be changed by other threads and thread
+    * states released or collected by GC when this thread is waiting with
+    * unlocked HVM so keep references to them in an item on HVM stack
+    */
+   pHold = hb_stackAllocItem();
    pThreads = pAlloc;
    if( HB_ISARRAY( 1 ) )
    {
       PHB_ITEM pArray = hb_param( 1, HB_IT_ARRAY );
       int iLen = ( int ) hb_arrayLen( pArray ), i;
 
+      hb_arrayNew( pHold, iLen );
       for( i = iThreads = 0; i < iLen; ++i )
       {
          PHB_THREADSTATE pThread = hb_thParam( 1, i + 1 );
@@ -1564,6 +1576,7 @@ HB_FUNC( HB_THREADWAIT )
                        hb_xgrab( sizeof( PHB_THREADSTATE ) * iLen );
             memcpy( pThreads, pAlloc, sizeof( pAlloc ) );
          }
+         hb_arraySetPtrGC( pHold, i + 1, pThread );
          pThreads[ iThreads++ ] = pThread;
       }
    }
@@ -1571,7 +1584,10 @@ HB_FUNC( HB_THREADWAIT )
    {
       pThreads[ 0 ] = hb_thParam( 1, 0 );
       if( pThreads[ 0 ] )
+      {
+         hb_itemPutPtrGC( pHold, pThreads[ 0 ] );
          iThreads = 1;
+      }
    }
 
    if( iThreads > 0 )
@@ -1593,6 +1609,8 @@ HB_FUNC( HB_THREADWAIT )
 
    if( pThreads != pAlloc )
       hb_xfree( pThreads );
+
+   hb_stackPop();
 #endif
 }
 

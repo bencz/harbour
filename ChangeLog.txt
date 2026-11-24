@@ -7,6 +7,20 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 10:48 UTC-0300 Alexandre Bencz
+  * src/vm/thread.c
+    ! fixed access to freed memory in hb_threadWait() and hb_threadJoin().
+      They used thread states from parameters without references to them
+      when they were waiting with unlocked HVM so other thread could
+      release them, e.g. by clearing items of the array passed to
+      hb_threadWait(), and hb_threadJoin() could deadlock when the thread
+      state was destroyed in other thread during the join.
+      Now references to thread states are kept in HVM stack items while
+      they are waiting.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for hb_threadWait() of array changed by other thread
+
 2026-11-24 10:20 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed hb_mutexSubscribeNow() (hb_threadMutexSubscribe() and
