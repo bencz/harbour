@@ -8,6 +8,13 @@
    See license at the end of file. */
 
 2026-11-24 15:16 UTC-0300 Alexandre Bencz
+  * src/vm/asort.c
+    - removed old quick sort algorithm used in HB_CLP_STRICT builds. It
+      was not CA-Cl*pper compatible (CA-Cl*pper results are different)
+      so HB_CLP_STRICT builds use the same algorithm as default ones.
+      Now hbtest passes in HB_CLP_STRICT builds.
+
+2026-11-24 15:16 UTC-0300 Alexandre Bencz
   * src/vm/arrayshb.c
     ! AFill() with wrong array parameter in HB_CLP_STRICT builds generates
       AEVAL/2017 error with the same arguments as CA-Cl*pper, i.e. the
