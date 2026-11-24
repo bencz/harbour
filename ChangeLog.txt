@@ -7,6 +7,16 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 15:06 UTC-0300 Alexandre Bencz
+  * utils/hbtest/rt_hvm.prg
+  * utils/hbtest/rt_str.prg
+  * utils/hbtest/rt_trans.prg
+    * updated expected results for HB_CLP_STRICT builds where CA-Cl*pper
+      behavior is replicated: codeblock comparison error, AllTrim()
+      error arguments, Transform() @E with dates, @( and @0/@L
+      Note: strict ASort(), AFill() and StrTran() results still differ
+      from CA-Cl*pper ones.
+
 2026-11-24 15:01 UTC-0300 Alexandre Bencz
   * utils/hbtest/rt_class.prg
     ! fixed compilation with HB_CLP_STRICT. Method functions are not

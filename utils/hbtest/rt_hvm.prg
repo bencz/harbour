@@ -492,8 +492,19 @@ PROCEDURE Main_HVM()
    HBTEST {|| NIL } == {|| NIL }          IS "E 1 BASE 1070 Argument error (==) OS:0 #:0 A:2:B:{||...};B:{||...} F:S"
    HBTEST sbBlock == sbBlock              IS "E 1 BASE 1070 Argument error (==) OS:0 #:0 A:2:B:{||...};B:{||...} F:S"
 #else
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST {|| NIL } == {|| NIL }          IS .F.
    HBTEST sbBlock == sbBlock              IS .T.
+#else
+   /* HB_CLP_STRICT builds do not compare codeblocks, like CA-Cl*pper */
+   HBTEST {|| NIL } == {|| NIL }          IS "E 1 BASE 1070 Argument error (==) OS:0 #:0 A:2:B:{||...};B:{||...} F:S"
+   HBTEST sbBlock == sbBlock              IS "E 1 BASE 1070 Argument error (==) OS:0 #:0 A:2:B:{||...};B:{||...} F:S"
+#endif
+#else
+   HBTEST {|| NIL } == {|| NIL }          IS .F.
+   HBTEST sbBlock == sbBlock              IS .T.
+#endif
 #endif
 
    /* = special */

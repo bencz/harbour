@@ -195,7 +195,15 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( hb_SToD( "19101112" ) , "9#-9#/##"   ) IS "1910-11-12"
    HBTEST Transform( hb_SToD( "19920101" ) , ""           ) IS "1992-01-01"
    HBTEST Transform( hb_SToD( "19920101" ) , "DO THIS "   ) IS "1992-01-01"
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform( hb_SToD( "19920102" ) , "@E"         ) IS "02-01-1992"  /* Bug in CA-Cl*pper, it returns: "2-91901-02" */
+#else
+   HBTEST Transform( hb_SToD( "19920102" ) , "@E"         ) IS "2-91901-02"  /* CA-Cl*pper bug replicated in HB_CLP_STRICT builds */
+#endif
+#else
+   HBTEST Transform( hb_SToD( "19920102" ) , "@E"         ) IS "02-01-1992"  /* Bug in CA-Cl*pper, it returns: "2-91901-02" */
+#endif
    HBTEST Transform( 1234                  , "@D 9999"    ) IS "    -12-34"
    HBTEST Transform( 1234                  , "@BD 9999"   ) IS "-12-34    "
    df := Set( _SET_DATEFORMAT, "yyyy.mm.dd" )
@@ -218,7 +226,15 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( hb_SToD( "19101112" ) , "9#-9#/##"   ) IS "10-11-12"
    HBTEST Transform( hb_SToD( "19920101" ) , ""           ) IS "92-01-01"
    HBTEST Transform( hb_SToD( "19920101" ) , "DO THIS "   ) IS "92-01-01"
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform( hb_SToD( "19920102" ) , "@E"         ) IS "02-01-92"   /* Bug in CA-Cl*pper, it returns: "01-92-02" */
+#else
+   HBTEST Transform( hb_SToD( "19920102" ) , "@E"         ) IS "01-92-02"   /* CA-Cl*pper bug replicated in HB_CLP_STRICT builds */
+#endif
+#else
+   HBTEST Transform( hb_SToD( "19920102" ) , "@E"         ) IS "02-01-92"   /* Bug in CA-Cl*pper, it returns: "01-92-02" */
+#endif
    HBTEST Transform( 1234                  , "@D 9999"    ) IS "  -12-34"
    HBTEST Transform( 1234                  , "@BD 9999"   ) IS "-12-34  "
    df := Set( _SET_DATEFORMAT, "yy.mm.dd" )
@@ -253,8 +269,14 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( 41        , "@Z 9999"      )      IS "  41"
    HBTEST Transform( 0         , "@Z 9999"      )      IS "    "
 #ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform( 41        , "@0 9999"      )      IS "0041"  /* Extension in Harbour, in CA-Cl*pper it should return: "  41" */
    HBTEST Transform( 0         , "@0 9999"      )      IS "0000"  /* Extension in Harbour, in CA-Cl*pper it should return: "   0" */
+#else
+   /* @0 extension is disabled in HB_CLP_STRICT builds */
+   HBTEST Transform( 41        , "@0 9999"      )      IS "  41"
+   HBTEST Transform( 0         , "@0 9999"      )      IS "   0"
+#endif
 #endif
    HBTEST Transform( 41        , "@B 9999"      )      IS "41  "
    HBTEST Transform( 41        , "@B 99.9"      )      IS "41.0"
@@ -270,7 +292,15 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( -7        , "9X9^"         )      IS "-X7^"
    HBTEST Transform( 1         , "@R 9HI!"      )      IS "1HI!"
    HBTEST Transform( 1         , "9HI!"         )      IS "1HI!"
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform( -12       , "@( 99"        )      IS "(*)"  /* Bug in CA-Cl*pper, it returns: "(2)" */
+#else
+   HBTEST Transform( -12       , "@( 99"        )      IS "(2)"  /* CA-Cl*pper bug replicated in HB_CLP_STRICT builds */
+#endif
+#else
+   HBTEST Transform( -12       , "@( 99"        )      IS "(*)"  /* Bug in CA-Cl*pper, it returns: "(2)" */
+#endif
    HBTEST Transform( 12        , "@( 99"        )      IS "12"
    HBTEST Transform( 1         , ""             )      IS "         1"
    HBTEST Transform( 32768     , ""             )      IS "     32768"
@@ -278,9 +308,25 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( 1048576   , ""             )      IS "   1048576"
    HBTEST Transform( 21.65     , ""             )      IS "        21.65"
    HBTEST Transform( -3.33     , ""             )      IS "        -3.33"
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform( -1234     , "@( 9999"      )      IS "(***)"  /* Bug in CA-Cl*pper, it returns: "(234)" */
+#else
+   HBTEST Transform( -1234     , "@( 9999"      )      IS "(234)"  /* CA-Cl*pper bug replicated in HB_CLP_STRICT builds */
+#endif
+#else
+   HBTEST Transform( -1234     , "@( 9999"      )      IS "(***)"  /* Bug in CA-Cl*pper, it returns: "(234)" */
+#endif
    HBTEST Transform( -1234     , "@B 9999"      )      IS "****"
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform( -1234     , "@B( 9999"     )      IS "(***)"  /* Bug in CA-Cl*pper, it returns: "(234)" */
+#else
+   HBTEST Transform( -1234     , "@B( 9999"     )      IS "(234)"  /* CA-Cl*pper bug replicated in HB_CLP_STRICT builds */
+#endif
+#else
+   HBTEST Transform( -1234     , "@B( 9999"     )      IS "(***)"  /* Bug in CA-Cl*pper, it returns: "(234)" */
+#endif
    HBTEST Transform( 1234      , "@E 9,999.99"  )      IS "1.234,00"
    HBTEST Transform( 12.2      , "@E 9,999.99"  )      IS "   12,20"
    HBTEST Transform( -1234     , "@X 9999"      )      IS "1234 DB"
@@ -548,6 +594,7 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( dt, "@E" )       IS "31<12>87"
 #ifdef __HARBOUR__
    /* this are wrongly converted by CA-Cl*pper */
+#ifndef HB_CLP_STRICT
    Set( _SET_DATEFORMAT, "DD:MM:YYYY" )
    HBTEST Transform( dt, "@E" )       IS "31:12:1987"
    Set( _SET_DATEFORMAT, "YYYY:MM:DD" )
@@ -562,6 +609,24 @@ PROCEDURE Main_TRANS()
    HBTEST Transform( dt, "@E" )       IS "<31:12.87>"
    Set( _SET_DATEFORMAT, "|YY|MM|DD|" )
    HBTEST Transform( dt, "@E" )       IS "|31|12|87|"
+#else
+   /* HB_CLP_STRICT builds replicate CA-Cl*pper which swaps the 1st-2nd
+      and 4th-5th characters of the formatted date */
+   Set( _SET_DATEFORMAT, "DD:MM:YYYY" )
+   HBTEST Transform( dt, "@E" )       IS "12:31:1987"
+   Set( _SET_DATEFORMAT, "YYYY:MM:DD" )
+   HBTEST Transform( dt, "@E" )       IS "7:81912:31"
+   Set( _SET_DATEFORMAT, "YYYY:DD:MM" )
+   HBTEST Transform( dt, "@E" )       IS "7:81931:12"
+   Set( _SET_DATEFORMAT, "YY:MM:DD" )
+   HBTEST Transform( dt, "@E" )       IS "12:87:31"
+   Set( _SET_DATEFORMAT, "DD:MM:YY" )
+   HBTEST Transform( dt, "@E" )       IS "12:31:87"
+   Set( _SET_DATEFORMAT, "<YY:DD.MM>" )
+   HBTEST Transform( dt, "@E" )       IS ":37<81.12>"
+   Set( _SET_DATEFORMAT, "|YY|MM|DD|" )
+   HBTEST Transform( dt, "@E" )       IS "|17|82|31|"
+#endif
 #endif
    Set( _SET_DATEFORMAT, "MM.DD.YYYY" )
    HBTEST Transform( dt, "@E" )       IS "31.12.1987"
@@ -756,6 +821,8 @@ PROCEDURE Main_TRANS()
    HBTEST Transform(           "   12", "@B("  ) IS "12   "
    HBTEST Transform(           "   12", "@B)"  ) IS "12   "
 #ifndef __CLIPPER__
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST Transform(              1234, "@L"   ) IS "0000001234"
    HBTEST Transform(              1234, "@0"   ) IS "0000001234"
    HBTEST Transform(              1234, "@L("  ) IS "0000001234"
@@ -767,6 +834,30 @@ PROCEDURE Main_TRANS()
     */
    HBTEST Transform(             -1234, "@L"   ) IS "-000001234"
    HBTEST Transform(             -1234, "@0"   ) IS "-000001234"
+#else
+   /* @L and @0 extensions are disabled in HB_CLP_STRICT builds */
+   HBTEST Transform(              1234, "@L"   ) IS "      1234"
+   HBTEST Transform(              1234, "@0"   ) IS "      1234"
+   HBTEST Transform(              1234, "@L("  ) IS "      1234"
+   HBTEST Transform(              1234, "@0)"  ) IS "      1234"
+   HBTEST Transform(             -1234, "@L("  ) IS "(     1234)"
+   HBTEST Transform(             -1234, "@0)"  ) IS "     (1234)"
+   HBTEST Transform(             -1234, "@L"   ) IS "     -1234"
+   HBTEST Transform(             -1234, "@0"   ) IS "     -1234"
+#endif
+#else
+   HBTEST Transform(              1234, "@L"   ) IS "0000001234"
+   HBTEST Transform(              1234, "@0"   ) IS "0000001234"
+   HBTEST Transform(              1234, "@L("  ) IS "0000001234"
+   HBTEST Transform(              1234, "@0)"  ) IS "0000001234"
+   HBTEST Transform(             -1234, "@L("  ) IS "(000001234)"
+   HBTEST Transform(             -1234, "@0)"  ) IS "(000001234)"
+   /* please test it with FoxPro and Xbase++ to check if they give
+    * the same result
+    */
+   HBTEST Transform(             -1234, "@L"   ) IS "-000001234"
+   HBTEST Transform(             -1234, "@0"   ) IS "-000001234"
+#endif
 #endif
    /* FlagShip extensions */
    HBTEST Transform(             -1234, "@Z"   ) IS "     -1234"

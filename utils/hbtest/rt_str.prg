@@ -346,8 +346,19 @@ PROCEDURE Main_STR()
 
 #ifdef HB_COMPAT_C53
    /* These lines will cause CA-Cl*pper 5.2e to trash memory and later crash, it was fixed in 5.3 */
+#ifdef __HARBOUR__
+#ifndef HB_CLP_STRICT
    HBTEST AllTrim( NIL )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:U:NIL F:S"
    HBTEST AllTrim( 100 )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:N:100 F:S"
+#else
+   /* HB_CLP_STRICT builds do not pass arguments to this CA-Cl*pper 5.3 RTE, like ASize() */
+   HBTEST AllTrim( NIL )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 F:S"
+   HBTEST AllTrim( 100 )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 F:S"
+#endif
+#else
+   HBTEST AllTrim( NIL )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:U:NIL F:S"
+   HBTEST AllTrim( 100 )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:N:100 F:S"
+#endif
 #endif
 #ifdef __HARBOUR__
    HBTEST AllTrim( @scString )                       IS "HELLO"  /* CA-Cl*pper bug, it will terminate the program on this line. */
