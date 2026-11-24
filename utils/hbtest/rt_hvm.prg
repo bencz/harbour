@@ -586,7 +586,65 @@ PROCEDURE Main_HVM()
    HBTEST {} >= {}                        IS "E 1 BASE 1076 Argument error (>=) OS:0 #:0 A:2:A:{.[0].};A:{.[0].} F:S"
    HBTEST {|| NIL } >= {|| NIL }          IS "E 1 BASE 1076 Argument error (>=) OS:0 #:0 A:2:B:{||...};B:{||...} F:S"
 
+#ifdef __HARBOUR__
+   /* var := var <op> <exp> has to read var before <exp> is evaluated */
+   HBTEST TAssignOp1()                    IS 1105
+   HBTEST TAssignOp2()                    IS 101
+   HBTEST TAssignOp3()                    IS 1507
+   HBTEST TAssignOp6()                    IS 9
+   HBTEST TAssignOp7()                    IS 807
+   HBTEST TAssignOp4()                    IS 202
+   HBTEST TAssignOp5()                    IS 505
+#endif
+
    RETURN
+
+#ifdef __HARBOUR__
+
+STATIC FUNCTION TAssignOp1()
+   LOCAL x := 1, y
+   x := x + ( ( x := 5 ) + ( y := x ) )
+   RETURN x * 100 + y
+
+STATIC FUNCTION TAssignOp2()
+   LOCAL x := 1
+   x := x + Eval( {|| x := 100 } )
+   RETURN x
+
+STATIC FUNCTION TAssignOp3()
+   LOCAL y
+   MEMVAR m_nAssignOp
+   PRIVATE m_nAssignOp := 1
+   m_nAssignOp := m_nAssignOp + ( ( m_nAssignOp := 7 ) + ( y := m_nAssignOp ) )
+   RETURN m_nAssignOp * 100 + y
+
+STATIC FUNCTION TAssignOp6()
+   LOCAL x := 1
+   x := x + TAssignOpByRef( @x )
+   RETURN x
+
+STATIC FUNCTION TAssignOp7()
+   LOCAL y
+   MEMVAR m_nAssignOp
+   PRIVATE m_nAssignOp := 1
+   m_nAssignOp := m_nAssignOp + ( ( M->m_nAssignOp := 7 ) + ( y := m_nAssignOp ) * 0 )
+   RETURN m_nAssignOp * 100 + y
+
+STATIC FUNCTION TAssignOpByRef( x )
+   x := 100
+   RETURN 8
+
+STATIC FUNCTION TAssignOp4()
+   LOCAL x := 1, y
+   x := x + ( x++ + ( y := x ) * 0 )
+   RETURN x * 100 + y
+
+STATIC FUNCTION TAssignOp5()
+   LOCAL x := 1, y
+   x := x * ( ( x := 5 ) + ( y := x ) * 0 )
+   RETURN x * 100 + y
+
+#endif
 
 /* Don't change the position of this #include. */
 #include "rt_init.ch"

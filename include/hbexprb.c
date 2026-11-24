@@ -2880,6 +2880,141 @@ static HB_EXPR_FUNC( hb_compExprUsePostDec )
    return pSelf;
 }
 
+/* Check if the expression may change the variable with given name, i.e.
+ * it contains assignment, increment or decrement of this variable, passes
+ * it by reference, uses macros or codeblock which may change it.
+ * It is used to check if var := var <op> <exp> can be optimized to
+ * var <op>= <exp> because such optimization changes the order of
+ * evaluation: <exp> is evaluated before the variable is read.
+ * NOTE: it does not detect variables changed inside called functions,
+ *       e.g. memvars or local variables referenced by codeblocks
+ *       created before, it would disable the optimization in nearly
+ *       all expressions with function calls and string concatenation
+ *       like var := var + Str( n ) would be much slower.
+ */
+/* check if the expression is the variable with given name used directly
+ * or with any alias, e.g. M->var or FIELD->var
+ */
+static HB_BOOL hb_compExprIsVarName( PHB_EXPR pExpr, const char * szName )
+{
+   if( pExpr->ExprType == HB_ET_ALIASVAR )
+      pExpr = pExpr->value.asAlias.pVar;
+
+   return pExpr != NULL && pExpr->ExprType == HB_ET_VARIABLE &&
+          strcmp( pExpr->value.asSymbol.name, szName ) == 0;
+}
+
+static HB_BOOL hb_compExprMayChangeVar( PHB_EXPR pExpr, const char * szName )
+{
+   if( pExpr == NULL )
+      return HB_FALSE;
+
+   switch( pExpr->ExprType )
+   {
+      case HB_ET_NONE:
+      case HB_ET_NIL:
+      case HB_ET_NUMERIC:
+      case HB_ET_DATE:
+      case HB_ET_TIMESTAMP:
+      case HB_ET_STRING:
+      case HB_ET_LOGICAL:
+      case HB_ET_SELF:
+      case HB_ET_FUNREF:
+      case HB_ET_FUNNAME:
+      case HB_ET_ALIAS:
+      case HB_ET_VARIABLE:
+         return HB_FALSE;
+
+      case HB_ET_VARREF:
+         return strcmp( pExpr->value.asSymbol.name, szName ) == 0;
+
+      case HB_ET_REFERENCE:
+         return hb_compExprIsVarName( pExpr->value.asReference, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asReference, szName );
+
+      case HB_ET_CODEBLOCK:
+         if( ( pExpr->value.asCodeblock.flags & ( HB_BLOCK_MACROVAR | HB_BLOCK_EXT ) ) != 0 )
+            return HB_TRUE;
+         /* fallthrough */
+      case HB_ET_ARRAY:
+      case HB_ET_HASH:
+      case HB_ET_IIF:
+      case HB_ET_LIST:
+      case HB_ET_ARGLIST:
+         pExpr = pExpr->ExprType == HB_ET_CODEBLOCK ?
+                 pExpr->value.asCodeblock.pExprList : pExpr->value.asList.pExprList;
+         while( pExpr )
+         {
+            if( hb_compExprMayChangeVar( pExpr, szName ) )
+               return HB_TRUE;
+            pExpr = pExpr->pNext;
+         }
+         return HB_FALSE;
+
+      case HB_ET_ARRAYAT:
+         return hb_compExprMayChangeVar( pExpr->value.asList.pExprList, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asList.pIndex, szName );
+
+      case HB_ET_FUNCALL:
+         return hb_compExprMayChangeVar( pExpr->value.asFunCall.pFunName, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asFunCall.pParms, szName );
+
+      case HB_ET_SEND:
+         return pExpr->value.asMessage.pMessage != NULL ||
+                hb_compExprMayChangeVar( pExpr->value.asMessage.pObject, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asMessage.pParms, szName );
+
+      case HB_ET_ALIASVAR:
+      case HB_ET_ALIASEXPR:
+         return hb_compExprMayChangeVar( pExpr->value.asAlias.pAlias, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asAlias.pVar, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asAlias.pExpList, szName );
+
+      case HB_ET_SETGET:
+         return hb_compExprMayChangeVar( pExpr->value.asSetGet.pVar, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asSetGet.pExpr, szName );
+
+      case HB_EO_POSTINC:
+      case HB_EO_POSTDEC:
+      case HB_EO_PREINC:
+      case HB_EO_PREDEC:
+      case HB_EO_ASSIGN:
+      case HB_EO_PLUSEQ:
+      case HB_EO_MINUSEQ:
+      case HB_EO_MULTEQ:
+      case HB_EO_DIVEQ:
+      case HB_EO_MODEQ:
+      case HB_EO_EXPEQ:
+         if( hb_compExprIsVarName( pExpr->value.asOperator.pLeft, szName ) )
+            return HB_TRUE;
+         /* fallthrough */
+      case HB_EO_OR:
+      case HB_EO_AND:
+      case HB_EO_NOT:
+      case HB_EO_EQUAL:
+      case HB_EO_EQ:
+      case HB_EO_NE:
+      case HB_EO_IN:
+      case HB_EO_LT:
+      case HB_EO_GT:
+      case HB_EO_LE:
+      case HB_EO_GE:
+      case HB_EO_PLUS:
+      case HB_EO_MINUS:
+      case HB_EO_MULT:
+      case HB_EO_DIV:
+      case HB_EO_MOD:
+      case HB_EO_POWER:
+      case HB_EO_NEGATE:
+         return hb_compExprMayChangeVar( pExpr->value.asOperator.pLeft, szName ) ||
+                hb_compExprMayChangeVar( pExpr->value.asOperator.pRight, szName );
+
+      default:
+         /* macros and other expressions which may change any variable */
+         return HB_TRUE;
+   }
+}
+
 static HB_EXPR_FUNC( hb_compExprUseAssign )
 {
    switch( iMessage )
@@ -2909,7 +3044,9 @@ static HB_EXPR_FUNC( hb_compExprUseAssign )
                pExpr->ExprType == HB_EO_MOD  || pExpr->ExprType == HB_EO_POWER ) &&
              pExpr->value.asOperator.pLeft->ExprType == HB_ET_VARIABLE &&
              strcmp( pSelf->value.asOperator.pLeft->value.asSymbol.name,
-                     pExpr->value.asOperator.pLeft->value.asSymbol.name ) == 0 )
+                     pExpr->value.asOperator.pLeft->value.asSymbol.name ) == 0 &&
+             ! hb_compExprMayChangeVar( pExpr->value.asOperator.pRight,
+                                        pSelf->value.asOperator.pLeft->value.asSymbol.name ) )
          {
             /* NOTE: direct type change */
             switch( pExpr->ExprType )

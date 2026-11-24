@@ -7,6 +7,23 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 06:50 UTC-0300 Alexandre Bencz
+  * include/hbexprb.c
+    ! fixed evaluation order in var := var <op> <exp> expressions when <exp>
+      changes the variable. Such expressions are optimized to
+      var <op>= <exp> which evaluates <exp> before the variable is read,
+      e.g. x := x + ( x := 5 ) gave 10 instead of 6 and x := x + x++ gave
+      3 instead of 2. Now this optimization is not used when <exp> may
+      change the variable: it contains assignment, increment or decrement
+      of this variable (also with alias, e.g. M->var), passes it by
+      reference, uses macros or codeblock literal which changes it.
+      Variables changed inside called functions are not detected to keep
+      the optimization for function calls, e.g. var := var + Str( n )
+      which is important for performance of string concatenation.
+
+  * utils/hbtest/rt_hvm.prg
+    + added tests for evaluation order in var := var <op> <exp>
+
 2026-11-24 06:35 UTC-0300 Alexandre Bencz
   * src/compiler/gencc.c
     ! fixed integer constants in -gc3 code which could not be compiled
