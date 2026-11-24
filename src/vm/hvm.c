@@ -935,6 +935,13 @@ void hb_vmThreadInit( void * Cargo )
          hb_itemRelease( pState->pMemvars );
          pState->pMemvars = NULL;
       }
+
+      /* thread is initialized, set QUIT request sent before */
+      HB_VM_LOCK();
+      pState->fReady = HB_TRUE;
+      if( pState->fQuitRequest )
+         hb_stackSetActionRequest( HB_QUIT_REQUESTED );
+      HB_VM_UNLOCK();
    }
 }
 
@@ -989,8 +996,12 @@ void hb_vmThreadQuitRequest( void * Cargo )
 
    HB_VM_LOCK();
 
-   if( pState->pStackId && pState->fActive )
+   if( pState->pStackId && pState->fActive && pState->fReady )
       hb_stackIdSetActionRequest( pState->pStackId, HB_QUIT_REQUESTED );
+   else if( ! pState->fFinished )
+      /* the thread has not finished its initialization yet (__HBVMINIT()
+       * has to set ErrorBlock()), QUIT request will be set when it does it */
+      pState->fQuitRequest = HB_TRUE;
 
    HB_VM_UNLOCK();
 }
@@ -1156,6 +1167,16 @@ void hb_vmInit( HB_BOOL bStartMainProc )
     * and set ErrorBlock() by ErrorSys() function.
     */
    hb_vmDoInitHVM();
+
+#if defined( HB_MT_VM )
+   /* main thread is initialized, QUIT requests can be set directly */
+   {
+      HB_STACK_TLS_PRELOAD
+      HB_VM_LOCK();
+      ( ( PHB_THREADSTATE ) hb_stackList() )->fReady = HB_TRUE;
+      HB_VM_UNLOCK();
+   }
+#endif
 
    hb_clsDoInit();                     /* initialize Class(y) .prg functions */
 

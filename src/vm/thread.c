@@ -1523,7 +1523,8 @@ HB_FUNC( HB_THREADQUITREQUEST )
       HB_BOOL fResult = HB_FALSE;
 
 #if defined( HB_MT_VM )
-      if( pThread->fActive )
+      /* request is accepted also for threads which have not started yet */
+      if( ! pThread->fFinished )
       {
          hb_vmThreadQuitRequest( ( void * ) pThread );
          /* wake up the thread if it's waiting for other threads or

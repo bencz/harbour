@@ -7,6 +7,21 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 11:17 UTC-0300 Alexandre Bencz
+  * include/hbthread.h
+  * src/vm/hvm.c
+  * src/vm/thread.c
+    ! fixed hb_threadQuitRequest() of thread which has not been initialized
+      yet, e.g. called just after hb_threadStart(). The request was lost
+      and the thread was executed. Now such requests are stored and set
+      when the thread initialization is finished, also requests sent when
+      __HBVMINIT() is executed are deferred so ErrorBlock() is always set
+      before QUIT. hb_threadQuitRequest() returns .T. for threads which
+      have not finished.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for hb_threadQuitRequest() sent just after hb_threadStart()
+
 2026-11-24 10:56 UTC-0300 Alexandre Bencz
   * src/vm/task.c
     ! fixed reporting of deadlocks and other internal errors detected in

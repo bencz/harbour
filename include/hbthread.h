@@ -413,6 +413,8 @@ typedef struct _HB_THREADSTATE
    PHB_CARGO_FUNC pFunc;
    HB_BOOL        fActive;
    HB_BOOL        fFinished;
+   HB_BOOL        fReady;        /* thread initialized */
+   HB_BOOL        fQuitRequest;  /* QUIT requested before thread initialized */
    PHB_ITEM       pParams;
    PHB_ITEM       pMemvars;
    PHB_ITEM       pResult;

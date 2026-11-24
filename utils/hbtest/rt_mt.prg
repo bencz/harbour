@@ -73,6 +73,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES9()              IS "ok/.T./.F."
       HBTEST DO_MTTES10()             IS "OK"
       HBTEST DO_MTTES11()             IS "OK"
+      HBTEST DO_MTTES12()             IS "20"
    ENDIF
 #endif
 
@@ -460,6 +461,20 @@ STATIC PROCEDURE thClearItems( aThreads )
    hb_gcAll( .T. )
 
    RETURN
+
+/* QUIT request sent just after the thread is started, before it
+   registered its HVM stack, cannot be lost */
+STATIC FUNCTION DO_MTTES12()
+
+   LOCAL th, i, nDone := 0
+
+   FOR i := 1 TO 20
+      th := hb_threadStart( {|| hb_idleSleep( 5 ) } )
+      hb_threadQuitRequest( th )
+      nDone += hb_threadWait( th, 1 )
+   NEXT
+
+   RETURN hb_ntos( nDone )
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 
