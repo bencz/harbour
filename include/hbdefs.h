@@ -153,6 +153,13 @@
 #  define HB_ARCH_16BIT
 #endif
 
+/* HB_LONG_LONG_OFF means that 64-bit integer type is not supported, when
+ * long is 64-bit then such type always exists and it's used instead of
+ * 'long long' so HB_LONG_LONG_OFF is meaningless */
+#if defined( HB_LONG_LONG_OFF ) && defined( HB_ARCH_64BIT )
+#  undef HB_LONG_LONG_OFF
+#endif
+
 /* Native Harbour types */
 
 #ifndef HB_LONG_LONG_OFF
@@ -517,7 +524,9 @@ typedef HB_U32       HB_SYMCNT;
 #  define HB_ULL( num )          num##ULL
 #endif
 
-#if LONGLONG_MAX < LONG_MAX
+/* HB_LONG_LONG_OFF means that 'long long' type is not used so its limits
+   are not checked */
+#if ! defined( HB_LONG_LONG_OFF ) && LONGLONG_MAX < LONG_MAX
    #if defined( __WATCOMC__ )
       #error "Your Watcom C can't preprocess 64-bit constants, use HB_USER_CFLAGS=-za99 or upgrade/downgrade"
    #else
@@ -1496,6 +1505,9 @@ typedef HB_U32 HB_FATTR;
    #define HB_GET_LE_UINT64( p )       hb_get_le_uint64( ( const HB_BYTE * ) ( p ) )
    #define HB_PUT_LE_UINT64( p, d )    hb_put_le_uint64( ( HB_BYTE * ) ( p ), \
                                                          ( double ) ( d ) )
+   #undef HB_GET_BE_UINT64
+   #define HB_GET_BE_UINT64( p )       ( ( double ) HB_GET_BE_UINT32( p ) * 4294967296.0 + \
+                                         ( double ) HB_GET_BE_UINT32( ( const HB_BYTE * ) ( p ) + 4 ) )
    #define HB_PCODE_MKLONGLONG( p )    ( ( double ) HB_GET_LE_INT64( p ) )
    #define HB_PCODE_MKULONGLONG( p )   ( ( double ) HB_GET_LE_UINT64( p ) )
    #define HB_DBL_LIM_INT64( d )       ( ( HB_MAXDBL ) -UINT64_MAXDBL / 2 - 1 <= \

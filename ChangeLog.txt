@@ -7,6 +7,28 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 11:57 UTC-0300 Alexandre Bencz
+  * include/hbdefs.h
+  * src/common/hbarch.c
+  * src/common/hbdate.c
+  * src/rdd/dbf1.c
+  * src/rtl/itemseri.c
+    ! fixed builds without 64-bit integer type (HB_LONG_LONG_OFF on 32-bit
+      platforms). They could not be compiled at all: check for wrongly
+      preprocessed 64-bit constants always failed because LONGLONG_MAX is
+      not defined in such builds, hb_dateDecode() used HB_LONGLONG,
+      itemseri.c used HB_GET_BE_UINT64() which did not exist and
+      hb_dbfPutValue() used variable out of its scope.
+      hb_dateDecode() uses doubles when there is no 64-bit integer type,
+      deserialization of xHarbour sizes and numbers and Harbour 64-bit
+      integers does not convert doubles out of range to integer types
+      which was undefined, e.g. negative xHarbour numbers were decoded
+      wrongly, hb_put_le_uint64() stores negative values correctly and
+      Windows hb_timerGet() does not shift 32-bit value by 32 bits.
+    * HB_LONG_LONG_OFF is disabled on platforms where long is 64-bit,
+      it means that 64-bit integer type is not supported and such type
+      always exists there
+
 2026-11-24 11:34 UTC-0300 Alexandre Bencz
   * src/vm/hvm.c
     * use hb_vmMultInt() also in builds with HB_LONG_LONG_OFF macro.
