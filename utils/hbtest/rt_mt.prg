@@ -69,6 +69,7 @@ PROCEDURE Main_MT()
       HBTEST DO_MTTES5()              IS "2000/2001000"
       HBTEST DO_MTTES6()              IS ".T./ok"
       HBTEST DO_MTTES7()              IS ".F./.T./.T./.T."
+      HBTEST DO_MTTES8()              IS "4/.T."
    ENDIF
 #endif
 
@@ -345,6 +346,29 @@ STATIC FUNCTION thSubTimed2( mtx )
    hb_mutexSubscribe( mtx, 0.3 )
 
    RETURN hb_MilliSeconds() - nStart
+
+/* QUIT request has to wake up threads waiting for other threads,
+   mutex notifications and sync signals */
+STATIC FUNCTION DO_MTTES8()
+
+   LOCAL mtxWait, mtxSync, thLong, aThreads, th, nStart, nDone := 0
+
+   mtxWait := hb_mutexCreate()
+   mtxSync := hb_mutexCreate()
+   thLong := hb_threadStart( @thSubResult(), mtxWait )
+   aThreads := { hb_threadStart( {|| hb_threadWait( thLong ) } ), ;
+                 hb_threadStart( @thSubResult(), mtxSync ), ;
+                 hb_threadStart( {|| __clsSyncWait( mtxSync ) } ) }
+   hb_idleSleep( 0.05 )
+   nStart := hb_MilliSeconds()
+   FOR EACH th IN aThreads
+      hb_threadQuitRequest( th )
+      nDone += hb_threadWait( th, 1 )
+   NEXT
+   hb_threadQuitRequest( thLong )
+   nDone += hb_threadWait( thLong, 1 )
+
+   RETURN hb_ntos( nDone ) + "/" + hb_ValToStr( hb_MilliSeconds() - nStart < 1000 )
 
 STATIC PROCEDURE thFunc( mtxJobs, mtxResults )
 

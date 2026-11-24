@@ -672,6 +672,7 @@ void hb_vmTerminateThreads( void )
 
       hb_threadMutexUnlockAll();
       hb_threadMutexUnsubscribeAll();
+      hb_threadWaitWakeUp();
 
       HB_VM_LOCK();
 

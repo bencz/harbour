@@ -1038,6 +1038,19 @@ HB_CARGO_FUNC( hb_threadStartVM )
    }
 }
 
+/* wake up threads waiting in hb_threadWait() so they can check if threads
+ * they wait for have finished or QUIT has been requested, each of them
+ * decrements s_waiting_for_threads when it leaves the wait so it's not
+ * cleared here
+ */
+void hb_threadWaitWakeUp( void )
+{
+   HB_CRITICAL_LOCK( s_thread_mtx );
+   if( s_waiting_for_threads )
+      HB_COND_SIGNALN( s_thread_cond, s_waiting_for_threads );
+   HB_CRITICAL_UNLOCK( s_thread_mtx );
+}
+
 static HB_THREAD_STARTFUNC( hb_threadStartFunc )
 {
    PHB_THREADSTATE pThread = ( PHB_THREADSTATE ) Cargo;
@@ -1053,12 +1066,7 @@ static HB_THREAD_STARTFUNC( hb_threadStartFunc )
     */
    hb_vmThreadQuit();
 
-   /* wake up threads waiting in hb_threadWait(), each of them decrements
-      s_waiting_for_threads when it leaves the wait so it's not cleared here */
-   HB_CRITICAL_LOCK( s_thread_mtx );
-   if( s_waiting_for_threads )
-      HB_COND_SIGNALN( s_thread_cond, s_waiting_for_threads );
-   HB_CRITICAL_UNLOCK( s_thread_mtx );
+   hb_threadWaitWakeUp();
 
    HB_THREAD_END
 }
@@ -1414,7 +1422,7 @@ static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
       if( hb_threadWaitDone( pThreads, iThreads, fAll, &iFinished, &iResult ) )
          break;
 
-      if( fExit )
+      if( fExit || hb_vmRequestQuery() != 0 )
          break;
 
       s_waiting_for_threads++;
@@ -1444,9 +1452,6 @@ static int hb_threadWait( PHB_THREADSTATE * pThreads, int iThreads,
             ulMilliSec = ( HB_ULONG ) ( timer - curr );
       }
 #endif
-
-      if( ! fExit && hb_vmRequestQuery() != 0 )
-         break;
    }
    HB_CRITICAL_UNLOCK( s_thread_mtx );
    hb_vmLock();
@@ -1516,6 +1521,13 @@ HB_FUNC( HB_THREADQUITREQUEST )
       if( pThread->fActive )
       {
          hb_vmThreadQuitRequest( ( void * ) pThread );
+         /* wake up the thread if it's waiting for other threads or
+          * mutex notification so it can check QUIT request
+          */
+         hb_vmUnlock();
+         hb_threadMutexUnsubscribeAll();
+         hb_threadWaitWakeUp();
+         hb_vmLock();
          fResult = HB_TRUE;
       }
 #endif
@@ -1963,7 +1975,8 @@ HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec,
 
          if( ulMilliSec == HB_THREAD_INFINITE_WAIT )
          {
-            while( pMutex->syncsignals == iSyncGen )
+            while( pMutex->syncsignals == iSyncGen &&
+                   hb_vmRequestQuery() == 0 )
             {
                pMutex->waiters++;
 #  if defined( HB_PTHREAD_API )

@@ -438,6 +438,7 @@ extern PHB_ITEM        hb_threadStart( HB_ULONG ulAttr, PHB_CARGO_FUNC pFunc, vo
 
 extern void    hb_threadMutexUnlockAll( void );
 extern void    hb_threadMutexUnsubscribeAll( void );
+extern void    hb_threadWaitWakeUp( void );
 extern void    hb_threadMutexSyncSignal( PHB_ITEM pItemMtx );
 extern HB_BOOL hb_threadMutexSyncWait( PHB_ITEM pItemMtx, HB_ULONG ulMilliSec, PHB_ITEM pItemSync );
 

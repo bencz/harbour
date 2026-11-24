@@ -7,6 +7,23 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-24 09:46 UTC-0300 Alexandre Bencz
+  * include/hbthread.h
+  * src/vm/hvm.c
+  * src/vm/thread.c
+    + added hb_threadWaitWakeUp() which wakes up threads waiting in
+      hb_threadWait()
+    ! fixed QUIT requests for threads waiting for other threads, mutex
+      notifications and sync signals. hb_threadQuitRequest() did not
+      wake up such threads, threads waiting in hb_threadWait() were not
+      woken up at application exit and infinite __clsSyncWait() ignored
+      QUIT request so application exit could hang forever.
+      Now hb_threadQuitRequest() and hb_vmTerminateThreads() wake up
+      waiting threads and all these waits check QUIT request.
+
+  * utils/hbtest/rt_mt.prg
+    + added test for hb_threadQuitRequest() of waiting threads
+
 2026-11-24 09:19 UTC-0300 Alexandre Bencz
   * src/vm/thread.c
     ! fixed possible hangup at application exit in
