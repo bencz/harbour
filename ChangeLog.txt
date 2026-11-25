@@ -7,6 +7,12 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-25 11:08 UTC-0300 Alexandre Bencz
+  * include/hbdefs.h
+    * compare 64-bit constants in separate #if directive also in
+      HB_FOFFSET definition, preprocessor without 64-bit support
+      evaluated LONGLONG_MAX when HB_LONG_LONG_OFF was defined
+
 2026-11-25 11:07 UTC-0300 Alexandre Bencz
   * include/hbdefs.h
     ! fixed checking of 64-bit constants support in preprocessor. The

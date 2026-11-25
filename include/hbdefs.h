@@ -641,13 +641,19 @@ typedef HB_U32 HB_FATTR;
    typedef unsigned long HB_PTRUINT;
 #endif
 
-/* type for file offsets */
-#if defined( HB_LONG_LONG_OFF ) || LONG_MAX == LONGLONG_MAX
+/* type for file offsets, 64-bit constants are compared in separate #if
+   because preprocessor without 64-bit support would evaluate them also
+   when HB_LONG_LONG_OFF is defined */
+#if defined( HB_LONG_LONG_OFF )
    typedef HB_LONG HB_FOFFSET;
    /* we can add hack with double as work around what should
       effectively give 52bit file size limit */
 #else
-   typedef HB_LONGLONG HB_FOFFSET;
+   #if LONG_MAX == LONGLONG_MAX
+      typedef HB_LONG HB_FOFFSET;
+   #else
+      typedef HB_LONGLONG HB_FOFFSET;
+   #endif
 #endif
 
 #if defined( HB_OS_WIN )
