@@ -7,6 +7,15 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-25 11:07 UTC-0300 Alexandre Bencz
+  * include/hbdefs.h
+    ! fixed checking of 64-bit constants support in preprocessor. The
+      condition has to be split into two #if directives, preprocessor
+      which does not support 64-bit constants evaluated LONGLONG_MAX
+      also when HB_LONG_LONG_OFF was defined, so such builds were
+      impossible.
+    * added -DHB_LONG_LONG_OFF suggestion to Watcom C error message
+
 2026-11-24 15:16 UTC-0300 Alexandre Bencz
   * src/vm/asort.c
     - removed old quick sort algorithm used in HB_CLP_STRICT builds. It

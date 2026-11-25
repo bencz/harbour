@@ -542,12 +542,16 @@ typedef HB_U32       HB_SYMCNT;
 #endif
 
 /* HB_LONG_LONG_OFF means that 'long long' type is not used so its limits
-   are not checked */
-#if ! defined( HB_LONG_LONG_OFF ) && LONGLONG_MAX < LONG_MAX
-   #if defined( __WATCOMC__ )
-      #error "Your Watcom C can't preprocess 64-bit constants, use HB_USER_CFLAGS=-za99 or upgrade/downgrade"
-   #else
-      #error "Your C compiler wrongly preprocess 64-bit constants"
+   are not checked. The conditions have to be in separate #if directives,
+   preprocessor which does not support 64-bit constants would evaluate
+   them also when HB_LONG_LONG_OFF is defined */
+#if ! defined( HB_LONG_LONG_OFF )
+   #if LONGLONG_MAX < LONG_MAX
+      #if defined( __WATCOMC__ )
+         #error "Your Watcom C can't preprocess 64-bit constants, use HB_USER_CFLAGS=-za99, upgrade/downgrade or use -DHB_LONG_LONG_OFF to disable 64-bit"
+      #else
+         #error "Your C compiler wrongly preprocess 64-bit constants"
+      #endif
    #endif
 #endif
 
