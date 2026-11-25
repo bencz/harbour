@@ -7,6 +7,14 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-25 11:30 UTC-0300 Alexandre Bencz
+  * utils/hbtest/rt_math.prg
+  * utils/hbtest/rt_misc.prg
+    * do not use MEMVAR and PUBLIC/PRIVATE declarations of the same
+      variable in new tests, CA-Cl*pper does not accept them with some
+      compiler options (/a gives error C2017), memory variables are
+      accessed with M-> alias
+
 2026-11-25 11:28 UTC-0300 Alexandre Bencz
   * utils/hbtest/rt_math.prg
   + utils/hbtest/rt_pp64.ch

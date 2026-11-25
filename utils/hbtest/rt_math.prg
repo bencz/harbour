@@ -876,14 +876,14 @@ STATIC FUNCTION TArrLitIdx()
 
    LOCAL n := 0, cResult
 
-   MEMVAR p_nIdx
+   PRIVATE p_nIdx
 
-   PRIVATE p_nIdx := 0
+   M->p_nIdx := 0
 
    cResult := hb_ntos( { n++, 2 }[ 2 ] ) + "/" + hb_ntos( n ) + "/"
    cResult += hb_ntos( { 1, 2, n++ }[ 2 ] ) + "/" + hb_ntos( n ) + "/"
    cResult += hb_ntos( { 1, 2, 3 }[ 3 ] ) + "/" + { "x", { 1 }, {|| 2 } }[ 1 ] + "/"
-   cResult += hb_ntos( &( "{ p_nIdx++, 5 }[ 2 ]" ) ) + "/" + hb_ntos( p_nIdx )
+   cResult += hb_ntos( &( "{ p_nIdx++, 5 }[ 2 ]" ) ) + "/" + hb_ntos( M->p_nIdx )
 
    RETURN cResult
 
@@ -929,9 +929,9 @@ STATIC FUNCTION TFoldArgsMacro()
 
    LOCAL cResult
 
-   MEMVAR p_nFold
+   PRIVATE p_nFold
 
-   PRIVATE p_nFold := 0
+   M->p_nFold := 0
 
    cResult := hb_ntos( &( "Asc( 'A', p_nFold++ )" ) ) + "/" + ;
               &( "Chr( 65, p_nFold++ )" ) + "/" + ;
@@ -943,7 +943,7 @@ STATIC FUNCTION TFoldArgsMacro()
               hb_ValToStr( &( "hb_bitTest( 2, 1, p_nFold++ )" ) ) + "/" + ;
               hb_ValToStr( Empty( &( "CToD( '', p_nFold++ )" ) ) )
 
-   RETURN cResult + "/" + hb_ntos( p_nFold )
+   RETURN cResult + "/" + hb_ntos( M->p_nFold )
 
 #endif
 

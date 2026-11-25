@@ -1160,8 +1160,10 @@ STATIC FUNCTION TRestoreMissing()
 
    LOCAL cResult := "", oError
 
-   MEMVAR _hbtst_mem
-   PUBLIC _hbtst_mem := "kept"
+   /* no MEMVAR declaration, CA-Cl*pper does not accept MEMVAR and
+      PUBLIC declarations of the same variable with some options */
+   PUBLIC _hbtst_mem
+   M->_hbtst_mem := "kept"
 
    FErase( "_hbnofil.mem" )
    BEGIN SEQUENCE WITH {| e | Break( e ) }
