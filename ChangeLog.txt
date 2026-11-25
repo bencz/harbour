@@ -7,6 +7,16 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-25 11:28 UTC-0300 Alexandre Bencz
+  * utils/hbtest/rt_math.prg
+  + utils/hbtest/rt_pp64.ch
+    ! moved tests of preprocessor #if expressions with 64-bit integers
+      to separate file included only by Harbour. CA-Cl*pper preprocessor
+      does not support #if even in code excluded by #ifdef so hbtest
+      could not be compiled by CA-Cl*pper.
+      Note: hbtest compiled by CA-Cl*pper 5.3 (with -DRT_NO_C) gives
+      the same results as before 2026-11-23 changes.
+
 2026-11-25 11:08 UTC-0300 Alexandre Bencz
   * include/hbdefs.h
     * compare 64-bit constants in separate #if directive also in

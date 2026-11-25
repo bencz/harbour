@@ -751,17 +751,10 @@ PROCEDURE Main_MATH()
       HBTEST TModV( -9223372036854775807 - 1, -1 )               IS .T.
       HBTEST TModC( -9223372036854775807 - 1 )                   IS .T.
       HBTEST TDivC( -9223372036854775807 - 1 )                   IS .T.
-      /* the same in preprocessor #if expressions */
-#if ( ( -9223372036854775807 - 1 ) % -1 ) == 0 .AND. ( 7 % -1 ) == 0 .AND. ( -7 % 3 ) == -1
-      HBTEST "PP %"                                              IS "PP %"
-#else
-      HBTEST "PP %"                                              IS "PP % failed"
-#endif
-#if ( ( -9223372036854775807 - 1 ) / -1 ) < 0 .AND. ( 7 / -1 ) == -7 .AND. ( -7 / -1 ) == 7
-      HBTEST "PP /"                                              IS "PP /"
-#else
-      HBTEST "PP /"                                              IS "PP / failed"
-#endif
+      /* the same in preprocessor #if expressions, they are in separate
+         file because CA-Cl*pper preprocessor does not support #if even
+         in excluded code */
+#include "rt_pp64.ch"
    ENDIF
 #endif
    HBTEST ( l := -7, l % -1 == 0 .AND. l % 3 == -1 .AND. l / -1 == 7 ) IS .T.
