@@ -346,19 +346,8 @@ PROCEDURE Main_STR()
 
 #ifdef HB_COMPAT_C53
    /* These lines will cause CA-Cl*pper 5.2e to trash memory and later crash, it was fixed in 5.3 */
-#ifdef __HARBOUR__
-#ifndef HB_CLP_STRICT
    HBTEST AllTrim( NIL )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:U:NIL F:S"
    HBTEST AllTrim( 100 )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:N:100 F:S"
-#else
-   /* HB_CLP_STRICT builds do not pass arguments to this CA-Cl*pper 5.3 RTE, like ASize() */
-   HBTEST AllTrim( NIL )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 F:S"
-   HBTEST AllTrim( 100 )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 F:S"
-#endif
-#else
-   HBTEST AllTrim( NIL )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:U:NIL F:S"
-   HBTEST AllTrim( 100 )                             IS "E 1 BASE 2022 Argument error (ALLTRIM) OS:0 #:0 A:1:N:100 F:S"
-#endif
 #endif
 #ifdef __HARBOUR__
    HBTEST AllTrim( @scString )                       IS "HELLO"  /* CA-Cl*pper bug, it will terminate the program on this line. */
@@ -458,24 +447,10 @@ PROCEDURE Main_STR()
 #ifndef __CLIPPER__
 #ifndef __XPP__
    HBTEST StrTran()                       IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 F:S"  /* CA-Cl*pper bug, it will exit on this */
-#ifndef HB_CLP_STRICT
    HBTEST StrTran( NIL )                  IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 A:1:U:NIL F:S"  /* CA-Cl*pper bug, it will exit on this */
    HBTEST StrTran( 100 )                  IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 A:1:N:100 F:S"  /* CA-Cl*pper bug, it will exit on this */
-#else
-   /* HB_CLP_STRICT builds do not pass arguments to this error */
-   HBTEST StrTran( NIL )                  IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 F:S"
-   HBTEST StrTran( 100 )                  IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 F:S"
 #endif
-#endif
-#ifdef __HARBOUR__
-#ifndef HB_CLP_STRICT
    HBTEST StrTran( "AA", 1 )              IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 A:2:C:AA;N:1 F:S"  /* CA-Cl*pper bug, it will exit on this */
-#else
-   HBTEST StrTran( "AA", 1 )              IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 F:S"
-#endif
-#else
-   HBTEST StrTran( "AA", 1 )              IS "E 1 BASE 1126 Argument error (STRTRAN) OS:0 #:0 A:2:C:AA;N:1 F:S"  /* CA-Cl*pper bug, it will exit on this */
-#endif
 #endif
    HBTEST StrTran( "AA", "A" )            IS ""
    HBTEST StrTran( "AA", "A", "1" )       IS "11"

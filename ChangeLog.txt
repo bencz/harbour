@@ -7,6 +7,18 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-25 11:32 UTC-0300 Alexandre Bencz
+  * src/rtl/strtran.c
+  * src/rtl/trim.c
+    ! pass arguments to StrTran() and AllTrim() errors also in
+      HB_CLP_STRICT builds. Tested with CA-Cl*pper 5.3: it generates
+      BASE/1126 and BASE/2022 errors with arguments, e.g.
+      StrTran( "AA", 1 ) has arguments "AA" and 1.
+
+  * utils/hbtest/rt_str.prg
+    * restored the same expected StrTran() and AllTrim() errors in
+      HB_CLP_STRICT builds as in other ones
+
 2026-11-25 11:30 UTC-0300 Alexandre Bencz
   * utils/hbtest/rt_math.prg
   * utils/hbtest/rt_misc.prg
