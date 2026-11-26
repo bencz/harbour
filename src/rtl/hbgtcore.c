@@ -2968,6 +2968,7 @@ static int hb_gt_def_InkeyGet( PHB_GT pGT, HB_BOOL fWait, double dSeconds, int i
 {
    HB_MAXUINT timer;
    HB_MAXINT timeout;
+   double dTimeout;
    PHB_ITEM pKey;
    HB_BOOL fPop;
 
@@ -2986,7 +2987,9 @@ static int hb_gt_def_InkeyGet( PHB_GT pGT, HB_BOOL fWait, double dSeconds, int i
    }
 
    /* Wait forever ?, Use fixed value 100 for strict Clipper compatibility */
-   timeout = ( fWait && dSeconds * 100 >= 1 ) ? ( HB_MAXINT ) ( dSeconds * 1000 ) : -1;
+   /* HB_CAST_MAXINT() saturates too big values */
+   dTimeout = dSeconds * 1000;
+   timeout = ( fWait && dSeconds * 100 >= 1 ) ? HB_CAST_MAXINT( dTimeout ) : -1;
    timer = hb_timerInit( timeout );
 
    for( ;; )

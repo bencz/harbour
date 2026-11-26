@@ -7,6 +7,19 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 10:51 UTC-0300 Alexandre Bencz
+  * src/vm/itemapi.c
+    ! hb_itemPutNLen() converts double values to integer only when they
+      are in HB_MAXINT range, conversion of other values was undefined
+      behavior, e.g. on ARM 2^63 was stored as integer 2^63-1
+  * src/rdd/dbf1.c
+    ! use HB_CAST_MAXINT() for numbers stored in integer fields, value
+      was converted before range checking
+  * src/rtl/idle.c
+  * src/rtl/hbgtcore.c
+    ! use HB_CAST_MAXINT() for hb_idleSleep() and Inkey() timeouts, too
+      big values were converted with undefined behavior
+
 2026-11-26 10:48 UTC-0300 Alexandre Bencz
   * src/common/expropt2.c
     ! fixed compile time optimization of comparison of NIL with logical

@@ -134,7 +134,9 @@ void hb_idleSleep( double dSeconds )
 {
    if( dSeconds >= 0 )
    {
-      HB_MAXINT timeout = dSeconds > 0 ? ( HB_MAXINT ) ( dSeconds * 1000 ) : 0;
+      double dTimeout = dSeconds * 1000;
+      /* HB_CAST_MAXINT() saturates too big values */
+      HB_MAXINT timeout = dSeconds > 0 ? HB_CAST_MAXINT( dTimeout ) : 0;
       HB_MAXUINT timer = hb_timerInit( timeout );
 
       do

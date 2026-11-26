@@ -2768,7 +2768,8 @@ static HB_ERRCODE hb_dbfPutValue( DBFAREAP pArea, HB_USHORT uiIndex, PHB_ITEM pI
                if( pField->uiDec )
                   dVal = hb_numDecConv( dVal, -( int ) pField->uiDec );
 #endif
-               lVal = ( HB_MAXINT ) dVal;
+               /* HB_CAST_MAXINT() does not convert values out of range */
+               lVal = HB_CAST_MAXINT( dVal );
                if( ! HB_DBL_LIM_INT64( dVal ) )
                   iSize = pField->uiLen + 1;
                else

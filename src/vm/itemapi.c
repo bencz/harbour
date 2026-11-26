@@ -1141,7 +1141,9 @@ PHB_ITEM hb_itemPutNLen( PHB_ITEM pItem, double dNumber, int iWidth, int iDec )
       iDec = hb_stackSetStruct()->HB_SET_DECIMALS;
    }
 
-   if( iDec == 0 )
+   /* conversion of double value out of HB_MAXINT range is undefined
+      behavior so it is checked before, such values are stored as double */
+   if( iDec == 0 && HB_DBL_LIM_LONG( dNumber ) )
    {
       HB_MAXINT nNumber = ( HB_MAXINT ) dNumber;
 
