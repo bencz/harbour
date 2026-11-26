@@ -645,6 +645,28 @@ static HB_USHORT hb_nsxKeyTypeRaw( HB_UCHAR ucType )
  *       probably not here or we will have to add parameter
  *       for scope key evaluation
  */
+/*
+ * store numeric value in index key, keys of other type, i.e. scopes set
+ * with different type than index key, can be shorter or longer than
+ * numeric value so it is not stored outside the key and the rest of key
+ * is cleared
+ */
+static void hb_nsxKeyPutDbl( LPKEYINFO pKey, double d, HB_USHORT uiKeyLen )
+{
+   if( uiKeyLen >= 8 )
+   {
+      HB_DBL2ORD( &d, pKey->val );
+      if( uiKeyLen > 8 )
+         memset( pKey->val + 8, '\0', uiKeyLen - 8 );
+   }
+   else
+   {
+      HB_UCHAR buffer[ 8 ];
+      HB_DBL2ORD( &d, buffer );
+      memcpy( pKey->val, buffer, uiKeyLen );
+   }
+}
+
 static LPKEYINFO hb_nsxKeyPutItem( LPKEYINFO pKey, PHB_ITEM pItem, HB_ULONG ulRecNo,
                                    LPTAGINFO pTag, HB_BOOL fTrans, HB_USHORT *puiLen )
 {
@@ -688,11 +710,11 @@ static LPKEYINFO hb_nsxKeyPutItem( LPKEYINFO pKey, PHB_ITEM pItem, HB_ULONG ulRe
          break;
       case 'N':
          d = hb_itemGetND( pItem );
-         HB_DBL2ORD( &d, pKey->val );
+         hb_nsxKeyPutDbl( pKey, d, pTag->KeyLength );
          break;
       case 'D':
          d = ( double ) hb_itemGetDL( pItem );
-         HB_DBL2ORD( &d, pKey->val );
+         hb_nsxKeyPutDbl( pKey, d, pTag->KeyLength );
          if( puiLen && pTag->KeyType == 'T' )
             pKey->mode = NSX_CMP_DATE;
          break;
@@ -701,10 +723,12 @@ static LPKEYINFO hb_nsxKeyPutItem( LPKEYINFO pKey, PHB_ITEM pItem, HB_ULONG ulRe
             d = ( double ) hb_itemGetDL( pItem );
          else
             d = hb_itemGetTD( pItem );
-         HB_DBL2ORD( &d, pKey->val );
+         hb_nsxKeyPutDbl( pKey, d, pTag->KeyLength );
          break;
       case 'L':
          pKey->val[ 0 ] = hb_itemGetL( pItem ) ? 'T' : 'F';
+         if( pTag->KeyLength > 1 )
+            memset( pKey->val + 1, '\0', pTag->KeyLength - 1 );
          break;
       default:
          memset( pKey->val, '\0', pTag->KeyLength );
@@ -1055,6 +1079,25 @@ static void hb_nsxTagGetScope( LPTAGINFO pTag, HB_USHORT nScope, PHB_ITEM pItem 
 }
 
 /*
+ * set new value of scope key, returns HB_TRUE when it was changed so
+ * cached key counter has to be refreshed
+ */
+static HB_BOOL hb_nsxScopeKeyPut( PHB_NSXSCOPE pScope, PHB_ITEM pItem, LPTAGINFO pTag )
+{
+   HB_USHORT uiLen;
+   LPKEYINFO pKey = hb_nsxKeyPutItem( NULL, pItem, pScope->scopeKey->rec,
+                                      pTag, HB_TRUE, &uiLen );
+   HB_BOOL fChanged = uiLen != pScope->scopeKeyLen ||
+                      pKey->mode != pScope->scopeKey->mode ||
+                      memcmp( pKey->val, pScope->scopeKey->val, pTag->KeyLength ) != 0;
+
+   hb_nsxKeyFree( pScope->scopeKey );
+   pScope->scopeKey = pKey;
+   pScope->scopeKeyLen = uiLen;
+   return fChanged;
+}
+
+/*
  * refresh top and bottom scope value if set as codeblock
  */
 static void hb_nsxTagRefreshScope( LPTAGINFO pTag )
@@ -1069,14 +1112,14 @@ static void hb_nsxTagRefreshScope( LPTAGINFO pTag )
    if( hb_itemType( pTag->top.scopeItem ) & HB_IT_BLOCK )
    {
       pItem = hb_vmEvalBlock( pTag->top.scopeItem );
-      pTag->top.scopeKey = hb_nsxKeyPutItem( pTag->top.scopeKey, pItem,
-               pTag->top.scopeKey->rec, pTag, HB_TRUE, &pTag->top.scopeKeyLen );
+      if( hb_nsxScopeKeyPut( &pTag->top, pItem, pTag ) )
+         pTag->keyCount = 0;
    }
    if( hb_itemType( pTag->bottom.scopeItem ) & HB_IT_BLOCK )
    {
       pItem = hb_vmEvalBlock( pTag->bottom.scopeItem );
-      pTag->bottom.scopeKey = hb_nsxKeyPutItem( pTag->bottom.scopeKey, pItem,
-         pTag->bottom.scopeKey->rec, pTag, HB_TRUE, &pTag->bottom.scopeKeyLen );
+      if( hb_nsxScopeKeyPut( &pTag->bottom, pItem, pTag ) )
+         pTag->keyCount = 0;
    }
 }
 
@@ -4061,14 +4104,23 @@ static int hb_nsxTagCount( NSXAREAP pArea )
 static HB_ULONG hb_nsxOrdKeyCount( LPTAGINFO pTag )
 {
    HB_ULONG ulKeyCount = 0;
+   HB_BOOL fRefreshed = HB_FALSE;
 
-   if( ! pTag->pIndex->fShared && pTag->keyCount &&
+   if( ! pTag->pIndex->fShared &&
        ! pTag->pIndex->pArea->dbfarea.area.dbfi.fFilter )
-      return pTag->keyCount;
+   {
+      /* scopes set by codeblocks may change and then cached
+         key counter is cleared */
+      hb_nsxTagRefreshScope( pTag );
+      fRefreshed = HB_TRUE;
+      if( pTag->keyCount )
+         return pTag->keyCount;
+   }
 
    if( hb_nsxTagLockRead( pTag ) )
    {
-      hb_nsxTagRefreshScope( pTag );
+      if( ! fRefreshed )
+         hb_nsxTagRefreshScope( pTag );
 
       if( pTag->top.scopeKeyLen || pTag->bottom.scopeKeyLen ||
           pTag->pIndex->pArea->dbfarea.area.dbfi.fFilter )

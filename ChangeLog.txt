@@ -7,6 +7,24 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 11:49 UTC-0300 Alexandre Bencz
+  * src/rdd/dbfcdx/dbfcdx1.c
+  * src/rdd/dbfntx/dbfntx1.c
+  * src/rdd/dbfnsx/dbfnsx1.c
+    ! fixed ordKeyCount() and ordKeyNo() with scopes set by codeblocks.
+      When codeblock returned different value, cached key counter and
+      position were not refreshed, so they were calculated for previous
+      scope values. Now they are refreshed when value of scope changes,
+      also in descending orders. DBFNTX and DBFNSX returned cached key
+      counter before evaluation of scope codeblocks.
+  * src/rdd/dbfnsx/dbfnsx1.c
+    ! fixed buffer overflow when numeric, date or timestamp scope value
+      is used with character index key shorter than 8 bytes and cleared
+      the rest of index key when such value is used with longer keys
+
+  * utils/hbtest/rt_misc.prg
+    + added tests for ordKeyCount() with scopes set by codeblocks
+
 2026-11-26 11:31 UTC-0300 Alexandre Bencz
   * include/hbrddnsx.h
   * src/rdd/dbfnsx/dbfnsx1.c

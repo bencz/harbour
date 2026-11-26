@@ -1082,6 +1082,11 @@ PROCEDURE Main_MISC()
    HBTEST TReindexFail( "DBFNTX" )           IS "1340/1012/1012/1012/OK/5"
    HBTEST TReindexFail( "DBFNSX" )           IS "1340/1012/1012/1012/OK/5"
 
+   /* ordKeyCount() with scopes set by codeblocks which values change */
+   HBTEST TScopeBlock( "DBFCDX" )            IS "3/8/1"
+   HBTEST TScopeBlock( "DBFNTX" )            IS "3/8/1"
+   HBTEST TScopeBlock( "DBFNSX" )            IS "3/8/1"
+
    /* TOTAL with NEXT and RECORD scopes */
    HBTEST TTotal( 0, 0 )                     IS "A3 B12 C6"
    HBTEST TTotal( 1, 3 )                     IS "A3 B3"
@@ -1122,6 +1127,43 @@ PROCEDURE Main_MISC()
 #ifndef HB_CLP_STRICT
 REQUEST DBFCDX
 REQUEST DBFNSX
+
+/* scope 3..5, 1..8, 6..6 set by the same codeblocks */
+STATIC FUNCTION TScopeBlock( cRDD )
+
+   LOCAL nArea := Select(), cResult, i, nTop := 3, nBottom := 5
+
+   FErase( "_hbscpb.cdx" )
+   FErase( "_hbscpb.nsx" )
+   FErase( "_hbscpb.ntx" )
+   dbCreate( "_hbscpb", { { "N", "N", 5, 0 } }, cRDD )
+   USE _hbscpb VIA ( cRDD ) NEW EXCLUSIVE
+   FOR i := 1 TO 10
+      dbAppend()
+      FIELD->N := i
+   NEXT
+   IF cRDD == "DBFNTX"
+      INDEX ON FIELD->N TO _hbscpb
+   ELSE
+      INDEX ON FIELD->N TAG TN
+   ENDIF
+   ordScope( 0, {|| nTop } )
+   ordScope( 1, {|| nBottom } )
+   dbGoTop()
+   cResult := hb_ntos( ordKeyCount() )
+   nTop := 1
+   nBottom := 8
+   cResult += "/" + hb_ntos( ordKeyCount() )
+   nTop := nBottom := 6
+   cResult += "/" + hb_ntos( ordKeyCount() )
+   dbCloseArea()
+   FErase( "_hbscpb.dbf" )
+   FErase( "_hbscpb.cdx" )
+   FErase( "_hbscpb.nsx" )
+   FErase( "_hbscpb.ntx" )
+   dbSelectArea( nArea )
+
+   RETURN cResult
 
 /* REINDEX interrupted by error in key expression of the second order,
    result: error of REINDEX/error of order use/the same after reopening/

@@ -863,6 +863,24 @@ static void hb_ntxTagGetScope( LPTAGINFO pTag, HB_USHORT nScope, PHB_ITEM pItem 
 }
 
 /*
+ * set new value of scope key, returns HB_TRUE when it was changed so
+ * cached key counter has to be refreshed
+ */
+static HB_BOOL hb_ntxScopeKeyPut( PHB_NTXSCOPE pScope, PHB_ITEM pItem, LPTAGINFO pTag )
+{
+   HB_USHORT uiLen;
+   LPKEYINFO pKey = hb_ntxKeyPutItem( NULL, pItem, pScope->scopeKey->Xtra,
+                                      pTag, HB_TRUE, &uiLen );
+   HB_BOOL fChanged = uiLen != pScope->scopeKeyLen ||
+                      memcmp( pKey->key, pScope->scopeKey->key, pTag->KeyLength ) != 0;
+
+   hb_ntxKeyFree( pScope->scopeKey );
+   pScope->scopeKey = pKey;
+   pScope->scopeKeyLen = uiLen;
+   return fChanged;
+}
+
+/*
  * refresh top and bottom scope value if set as codeblock
  */
 static void hb_ntxTagRefreshScope( LPTAGINFO pTag )
@@ -877,14 +895,14 @@ static void hb_ntxTagRefreshScope( LPTAGINFO pTag )
    if( hb_itemType( pTag->top.scopeItem ) & HB_IT_BLOCK )
    {
       pItem = hb_vmEvalBlock( pTag->top.scopeItem );
-      pTag->top.scopeKey = hb_ntxKeyPutItem( pTag->top.scopeKey, pItem,
-               pTag->top.scopeKey->Xtra, pTag, HB_TRUE, &pTag->top.scopeKeyLen );
+      if( hb_ntxScopeKeyPut( &pTag->top, pItem, pTag ) )
+         pTag->keyCount = 0;
    }
    if( hb_itemType( pTag->bottom.scopeItem ) & HB_IT_BLOCK )
    {
       pItem = hb_vmEvalBlock( pTag->bottom.scopeItem );
-      pTag->bottom.scopeKey = hb_ntxKeyPutItem( pTag->bottom.scopeKey, pItem,
-         pTag->bottom.scopeKey->Xtra, pTag, HB_TRUE, &pTag->bottom.scopeKeyLen );
+      if( hb_ntxScopeKeyPut( &pTag->bottom, pItem, pTag ) )
+         pTag->keyCount = 0;
    }
 }
 
@@ -3804,14 +3822,23 @@ static int hb_ntxTagCount( NTXAREAP pArea )
 static HB_ULONG hb_ntxOrdKeyCount( LPTAGINFO pTag )
 {
    HB_ULONG ulKeyCount = 0;
+   HB_BOOL fRefreshed = HB_FALSE;
 
-   if( ! pTag->pIndex->fShared && pTag->keyCount &&
+   if( ! pTag->pIndex->fShared &&
        ! pTag->pIndex->pArea->dbfarea.area.dbfi.fFilter )
-      return pTag->keyCount;
+   {
+      /* scopes set by codeblocks may change and then cached
+         key counter is cleared */
+      hb_ntxTagRefreshScope( pTag );
+      fRefreshed = HB_TRUE;
+      if( pTag->keyCount )
+         return pTag->keyCount;
+   }
 
    if( hb_ntxTagLockRead( pTag ) )
    {
-      hb_ntxTagRefreshScope( pTag );
+      if( ! fRefreshed )
+         hb_ntxTagRefreshScope( pTag );
 
       if( pTag->top.scopeKeyLen || pTag->bottom.scopeKeyLen ||
           pTag->pIndex->pArea->dbfarea.area.dbfi.fFilter )

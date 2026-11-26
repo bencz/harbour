@@ -848,6 +848,23 @@ static void hb_cdxTagGetScope( LPCDXTAG pTag, HB_USHORT nScope, PHB_ITEM pItem )
 }
 
 /*
+ * set new value of scope key, returns HB_TRUE when it was changed so
+ * cached key counter and position have to be refreshed
+ */
+static HB_BOOL hb_cdxScopeKeyPut( LPCDXKEY * pScopeKey, PHB_ITEM pItem, LPCDXTAG pTag )
+{
+   LPCDXKEY pKey = hb_cdxKeyPutItem( NULL, pItem, ( *pScopeKey )->rec,
+                                     pTag, CDX_CMP_PREFIX );
+   HB_BOOL fChanged = pKey->len != ( *pScopeKey )->len ||
+                      pKey->mode != ( *pScopeKey )->mode ||
+                      memcmp( pKey->val, ( *pScopeKey )->val, pKey->len ) != 0;
+
+   hb_cdxKeyFree( *pScopeKey );
+   *pScopeKey = pKey;
+   return fChanged;
+}
+
+/*
  * refresh top and bottom scope value if set as codeblock
  */
 static void hb_cdxTagRefreshScope( LPCDXTAG pTag )
@@ -861,16 +878,17 @@ static void hb_cdxTagRefreshScope( LPCDXTAG pTag )
    if( hb_itemType( pTag->topScope ) & HB_IT_BLOCK )
    {
       pItem = hb_vmEvalBlock( pTag->topScope );
-      pTag->topScopeKey = hb_cdxKeyPutItem( pTag->topScopeKey, pItem,
-                                            pTag->topScopeKey->rec,
-                                            pTag, CDX_CMP_PREFIX );
+      if( hb_cdxScopeKeyPut( &pTag->topScopeKey, pItem, pTag ) )
+         pTag->curKeyState &= ~( CDX_CURKEY_RAWCNT | CDX_CURKEY_LOGCNT |
+                                 CDX_CURKEY_RAWPOS | CDX_CURKEY_LOGPOS );
    }
    if( hb_itemType( pTag->bottomScope ) & HB_IT_BLOCK )
    {
       pItem = hb_vmEvalBlock( pTag->bottomScope );
-      pTag->bottomScopeKey = hb_cdxKeyPutItem( pTag->bottomScopeKey, pItem,
-                                               pTag->bottomScopeKey->rec,
-                                               pTag, CDX_CMP_PREFIX );
+      /* bottom scope is the first key in descending orders */
+      if( hb_cdxScopeKeyPut( &pTag->bottomScopeKey, pItem, pTag ) )
+         pTag->curKeyState &= ~( CDX_CURKEY_RAWCNT | CDX_CURKEY_LOGCNT |
+                                 CDX_CURKEY_RAWPOS | CDX_CURKEY_LOGPOS );
    }
 }
 
