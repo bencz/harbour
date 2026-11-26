@@ -1109,8 +1109,14 @@ PROCEDURE Main_MISC()
    HBTEST TSetDec( 70000 )                   IS "2020/2"
    HBTEST TSetDec( -1 )                      IS "2020/2"
    HBTEST TSetDec( 65535 )                   IS "OK/65535"
+#ifndef HB_CLP_STRICT
    HBTEST TSetDec( 10 ^ 20 )                 IS "2020/2"
    HBTEST TSetDec( -( 10 ^ 20 ) )            IS "2020/2"
+#else
+   /* such numbers are converted to 0 like in CA-Cl*pper */
+   HBTEST TSetDec( 10 ^ 20 )                 IS "OK/0"
+   HBTEST TSetDec( -( 10 ^ 20 ) )            IS "OK/0"
+#endif
 
    /* hb_HDelAt() with position out of range */
    HBTEST THDelAt( 5 )                       IS "BASE/1187/HB_HDELAT"

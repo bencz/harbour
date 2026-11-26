@@ -683,9 +683,15 @@ PROCEDURE Main_MATH()
       integer, compile time and runtime results are the same */
    HBTEST Asc( Chr( 100000000000000000000 ) )               IS 255
    HBTEST Asc( Chr( -100000000000000000000 ) )              IS 0
+#ifndef HB_CLP_STRICT
    HBTEST Asc( &( "Chr( 100000000000000000000 )" ) )        IS 255
-   HBTEST hb_bitAnd( 100000000000000000000, 255 )           IS 255
    HBTEST TChrNum( 100000000000000000000 )                  IS 255
+#else
+   /* such values are converted to 0 like in CA-Cl*pper */
+   HBTEST Asc( &( "Chr( 100000000000000000000 )" ) )        IS 0
+   HBTEST TChrNum( 100000000000000000000 )                  IS 0
+#endif
+   HBTEST hb_bitAnd( 100000000000000000000, 255 )           IS 255
 
    /* additional parameters of reduced functions are evaluated */
    HBTEST TFoldArgs()                     IS "4/2/2/.T./-1/A/65/.F./8"

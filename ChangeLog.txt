@@ -7,6 +7,27 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 12:14 UTC-0300 Alexandre Bencz
+  * include/hbdefs.h
+    * in HB_CLP_STRICT builds double values out of HB_MAXINT range and
+      NaN are converted to 0 by HB_CAST_*() macros like in CA-Cl*pper,
+      where x87 FPU "integer indefinite" value 0x80000000 is truncated to
+      16-bit integer, e.g. Chr( 1e30 ) is Chr( 0 ), Array( -1e30 ) is
+      empty array, Date() + 1e20 is Date() and SET DECIMALS TO 1e20 sets
+      0 decimal places. Tested with CA-Cl*pper 5.3. Other builds saturate
+      such values to the limits of integer type.
+
+  * src/rtl/hbgtcore.c
+  * src/rtl/idle.c
+    * saturate too big Inkey() and hb_idleSleep() timeouts explicitly,
+      HB_CAST_MAXINT() converts them to 0 in HB_CLP_STRICT builds and
+      CA-Cl*pper Inkey( 1e30 ) waits for key
+
+  * utils/hbtest/rt_date.prg
+  * utils/hbtest/rt_math.prg
+  * utils/hbtest/rt_misc.prg
+    * added expected results for HB_CLP_STRICT builds
+
 2026-11-26 11:52 UTC-0300 Alexandre Bencz
   * src/rdd/dbfcdx/dbfcdx1.c
   * src/rdd/dbfntx/dbfntx1.c

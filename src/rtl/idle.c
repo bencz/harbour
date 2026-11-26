@@ -135,8 +135,11 @@ void hb_idleSleep( double dSeconds )
    if( dSeconds >= 0 )
    {
       double dTimeout = dSeconds * 1000;
-      /* HB_CAST_MAXINT() saturates too big values */
-      HB_MAXINT timeout = dSeconds > 0 ? HB_CAST_MAXINT( dTimeout ) : 0;
+      /* too big timeouts are saturated, it cannot be done by HB_CAST_MAXINT()
+         which converts them to 0 in HB_CLP_STRICT builds */
+      HB_MAXINT timeout = dSeconds <= 0 ? 0 :
+                          ( dTimeout < ( double ) HB_VMLONG_MAX ?
+                            ( HB_MAXINT ) dTimeout : HB_VMLONG_MAX );
       HB_MAXUINT timer = hb_timerInit( timeout );
 
       do

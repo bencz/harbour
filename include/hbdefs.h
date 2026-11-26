@@ -503,12 +503,22 @@ typedef HB_U32       HB_SYMCNT;
    are converted to HB_MAXINT and then to given type like before.
    HB_VMLONG_MIN is power of 2 so it is exact double value and there is
    no need to use long double ( HB_MAXDBL ) like in HB_DBL_LIM_LONG() */
+#if defined( HB_CLP_STRICT )
+/* CA-Cl*pper converts such values to x87 FPU "integer indefinite" value
+   0x80000000 which lower 16 bits used as integer are 0, i.e. Chr( 1e30 )
+   is Chr( 0 ) and Array( -1e30 ) is empty array */
+#define HB_CAST_DBL_SAT( d, type, min, max ) \
+            ( ( ( double ) HB_VMLONG_MIN <= ( d ) && \
+                ( d ) < -( ( double ) HB_VMLONG_MIN ) ) ? \
+              ( type ) ( HB_MAXINT ) ( d ) : ( type ) 0 )
+#else
 #define HB_CAST_DBL_SAT( d, type, min, max ) \
             ( ( ( double ) HB_VMLONG_MIN <= ( d ) && \
                 ( d ) < -( ( double ) HB_VMLONG_MIN ) ) ? \
               ( type ) ( HB_MAXINT ) ( d ) : \
               ( ( d ) > 0 ? ( type ) ( max ) : \
                 ( ( d ) < 0 ? ( type ) ( min ) : ( type ) 0 ) ) )
+#endif
 
 #define HB_CAST_INT( d )      HB_CAST_DBL_SAT( d, int, INT_MIN, INT_MAX )
 #define HB_CAST_LONG( d )     HB_CAST_DBL_SAT( d, long, LONG_MIN, LONG_MAX )

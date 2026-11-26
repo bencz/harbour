@@ -2987,9 +2987,12 @@ static int hb_gt_def_InkeyGet( PHB_GT pGT, HB_BOOL fWait, double dSeconds, int i
    }
 
    /* Wait forever ?, Use fixed value 100 for strict Clipper compatibility */
-   /* HB_CAST_MAXINT() saturates too big values */
+   /* too big timeouts are saturated, it cannot be done by HB_CAST_MAXINT()
+      which converts them to 0 in HB_CLP_STRICT builds */
    dTimeout = dSeconds * 1000;
-   timeout = ( fWait && dSeconds * 100 >= 1 ) ? HB_CAST_MAXINT( dTimeout ) : -1;
+   timeout = ( fWait && dSeconds * 100 >= 1 ) ?
+             ( dTimeout < ( double ) HB_VMLONG_MAX ? ( HB_MAXINT ) dTimeout :
+                                                     HB_VMLONG_MAX ) : -1;
    timer = hb_timerInit( timeout );
 
    for( ;; )
