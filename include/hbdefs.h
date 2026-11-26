@@ -552,17 +552,15 @@ typedef HB_U32       HB_SYMCNT;
 #endif
 
 /* HB_LONG_LONG_OFF means that 'long long' type is not used so its limits
-   are not checked. The conditions have to be in separate #if directives,
-   preprocessor which does not support 64-bit constants would evaluate
-   them also when HB_LONG_LONG_OFF is defined */
+   are not checked */
 #if ! defined( HB_LONG_LONG_OFF )
-   #if LONGLONG_MAX < LONG_MAX
-      #if defined( __WATCOMC__ )
-         #error "Your Watcom C can't preprocess 64-bit constants, use HB_USER_CFLAGS=-za99, upgrade/downgrade or use -DHB_LONG_LONG_OFF to disable 64-bit"
-      #else
-         #error "Your C compiler wrongly preprocess 64-bit constants"
-      #endif
-   #endif
+# if LONGLONG_MAX < LONG_MAX
+#  if defined( __WATCOMC__ )
+#     error "Your Watcom C can't preprocess 64-bit constants, use HB_USER_CFLAGS=-za99, upgrade/downgrade or use -DHB_LONG_LONG_OFF to disable 64-bit"
+#  else
+#     error "Your C compiler wrongly preprocess 64-bit constants"
+#  endif
+# endif
 #endif
 
 /* HB_*_EXPLENGTH() macros are used by HVM to set the size of
@@ -823,14 +821,16 @@ typedef HB_U32 HB_FATTR;
 #  define HB_PFS  "l"
 #endif
 
-#define HB_SWAP_UINT64( w )      ( ( HB_U64 ) ( ( ( ( HB_U64 ) ( w ) & HB_LL( 0x00000000000000FF ) ) << 56 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0x000000000000FF00 ) ) << 40 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0x0000000000FF0000 ) ) << 24 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0x00000000FF000000 ) ) <<  8 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0x000000FF00000000 ) ) >>  8 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0x0000FF0000000000 ) ) >> 24 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0x00FF000000000000 ) ) >> 40 ) | \
-                                                ( ( ( HB_U64 ) ( w ) & HB_LL( 0xFF00000000000000 ) ) >> 56 ) ) )
+#if ! defined( HB_LONG_LONG_OFF )
+# define HB_SWAP_UINT64( w )      ( ( HB_U64 ) ( ( ( ( HB_U64 ) ( w ) & HB_LL( 0x00000000000000FF ) ) << 56 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0x000000000000FF00 ) ) << 40 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0x0000000000FF0000 ) ) << 24 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0x00000000FF000000 ) ) <<  8 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0x000000FF00000000 ) ) >>  8 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0x0000FF0000000000 ) ) >> 24 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0x00FF000000000000 ) ) >> 40 ) | \
+                                                 ( ( ( HB_U64 ) ( w ) & HB_LL( 0xFF00000000000000 ) ) >> 56 ) ) )
+#endif
 
 /*
  * on some machines it's not safe to directly access pointers stored
