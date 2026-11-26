@@ -1082,6 +1082,11 @@ PROCEDURE Main_MISC()
    HBTEST TReindexFail( "DBFNTX" )           IS "1340/1012/1012/1012/OK/5"
    HBTEST TReindexFail( "DBFNSX" )           IS "1340/1012/1012/1012/OK/5"
 
+   /* REINDEX EVAL does not leave conditions for next created order */
+   HBTEST TReindexEval( "DBFCDX" )           IS "0/0"
+   HBTEST TReindexEval( "DBFNTX" )           IS "0/0"
+   HBTEST TReindexEval( "DBFNSX" )           IS "0/0"
+
    /* ordKeyCount() with scopes set by codeblocks which values change */
    HBTEST TScopeBlock( "DBFCDX" )            IS "3/8/1"
    HBTEST TScopeBlock( "DBFNTX" )            IS "3/8/1"
@@ -1127,6 +1132,49 @@ PROCEDURE Main_MISC()
 #ifndef HB_CLP_STRICT
 REQUEST DBFCDX
 REQUEST DBFNSX
+
+/* number of EVAL block calls during ordCreate() executed after
+   REINDEX EVAL with index and without indexes */
+STATIC FUNCTION TReindexEval( cRDD )
+
+   LOCAL nArea := Select(), cResult := "", i, nEval := 0, lIndex
+
+   FOR EACH lIndex IN { .T., .F. }
+      FErase( "_hbrieva.cdx" )
+      FErase( "_hbrieva.nsx" )
+      FErase( "_hbrieva.ntx" )
+      FErase( "_hbriev2.ntx" )
+      dbCreate( "_hbrieva", { { "N", "N", 5, 0 } }, cRDD )
+      USE _hbrieva VIA ( cRDD ) NEW EXCLUSIVE
+      FOR i := 1 TO 5
+         dbAppend()
+         FIELD->N := i
+      NEXT
+      IF lIndex
+         IF cRDD == "DBFNTX"
+            INDEX ON FIELD->N TO _hbrieva
+         ELSE
+            INDEX ON FIELD->N TAG TN
+         ENDIF
+      ENDIF
+      REINDEX EVAL {|| nEval++, .T. } EVERY 1
+      nEval := 0
+      IF cRDD == "DBFNTX"
+         ordCreate( "_hbriev2", , "-N", {|| -FIELD->N } )
+      ELSE
+         ordCreate( , "TM", "-N", {|| -FIELD->N } )
+      ENDIF
+      cResult += iif( Empty( cResult ), "", "/" ) + hb_ntos( nEval )
+      dbCloseArea()
+   NEXT
+   FErase( "_hbrieva.dbf" )
+   FErase( "_hbrieva.cdx" )
+   FErase( "_hbrieva.nsx" )
+   FErase( "_hbrieva.ntx" )
+   FErase( "_hbriev2.ntx" )
+   dbSelectArea( nArea )
+
+   RETURN cResult
 
 /* scope 3..5, 1..8, 6..6 set by the same codeblocks */
 STATIC FUNCTION TScopeBlock( cRDD )

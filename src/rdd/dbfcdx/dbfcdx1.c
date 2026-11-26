@@ -7559,7 +7559,7 @@ static HB_ERRCODE hb_cdxOrderListFocus( CDXAREAP pArea, LPDBORDERINFO pOrderInfo
 }
 
 /* ( DBENTRYP_V )     hb_cdxOrderListRebuild */
-static HB_ERRCODE hb_cdxOrderListRebuild( CDXAREAP pArea )
+static HB_ERRCODE hb_cdxOrderListRebuildDo( CDXAREAP pArea )
 {
    LPCDXINDEX pIndex, * pIndexPtr;
    HB_USHORT uiPrevTag;
@@ -7603,6 +7603,21 @@ static HB_ERRCODE hb_cdxOrderListRebuild( CDXAREAP pArea )
    SELF_ORDSETCOND( &pArea->dbfarea.area, NULL );
 
    return SELF_GOTOP( &pArea->dbfarea.area );
+}
+
+/*
+ * REINDEX, conditions set by ordCondSet() (e.g. REINDEX EVAL) are used
+ * only by this operation and are always cleared like in CA-Cl*pper,
+ * also when there are no indexes or REINDEX fails, otherwise they would
+ * be used by the next created order
+ */
+static HB_ERRCODE hb_cdxOrderListRebuild( CDXAREAP pArea )
+{
+   HB_ERRCODE errCode = hb_cdxOrderListRebuildDo( pArea );
+
+   SELF_ORDSETCOND( &pArea->dbfarea.area, NULL );
+
+   return errCode;
 }
 
 /* ( DBENTRYP_VOO )   hb_cdxOrderCondition  : NULL */

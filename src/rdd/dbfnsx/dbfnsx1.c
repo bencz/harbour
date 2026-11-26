@@ -8159,7 +8159,7 @@ static HB_ERRCODE hb_nsxOrderListFocus( NSXAREAP pArea, LPDBORDERINFO pOrderInfo
    return HB_SUCCESS;
 }
 
-static HB_ERRCODE hb_nsxOrderListRebuild( NSXAREAP pArea )
+static HB_ERRCODE hb_nsxOrderListRebuildDo( NSXAREAP pArea )
 {
    LPTAGINFO pCurrTag;
    LPNSXINDEX pIndex;
@@ -8202,6 +8202,21 @@ static HB_ERRCODE hb_nsxOrderListRebuild( NSXAREAP pArea )
       errCode = SELF_GOTOP( &pArea->dbfarea.area );
    else
       hb_nsxGoTopOpen( pArea );
+   return errCode;
+}
+
+/*
+ * REINDEX, conditions set by ordCondSet() (e.g. REINDEX EVAL) are used
+ * only by this operation and are always cleared like in CA-Cl*pper,
+ * also when there are no indexes or REINDEX fails, otherwise they would
+ * be used by the next created order
+ */
+static HB_ERRCODE hb_nsxOrderListRebuild( NSXAREAP pArea )
+{
+   HB_ERRCODE errCode = hb_nsxOrderListRebuildDo( pArea );
+
+   SELF_ORDSETCOND( &pArea->dbfarea.area, NULL );
+
    return errCode;
 }
 

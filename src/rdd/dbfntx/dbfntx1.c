@@ -7650,7 +7650,7 @@ static HB_ERRCODE hb_ntxOrderListFocus( NTXAREAP pArea, LPDBORDERINFO pOrderInfo
    return HB_SUCCESS;
 }
 
-static HB_ERRCODE hb_ntxOrderListRebuild( NTXAREAP pArea )
+static HB_ERRCODE hb_ntxOrderListRebuildDo( NTXAREAP pArea )
 {
    LPTAGINFO pCurrTag;
    LPNTXINDEX pIndex;
@@ -7692,6 +7692,21 @@ static HB_ERRCODE hb_ntxOrderListRebuild( NTXAREAP pArea )
       pArea->lpCurTag = pCurrTag;
       errCode = SELF_GOTOP( &pArea->dbfarea.area );
    }
+   return errCode;
+}
+
+/*
+ * REINDEX, conditions set by ordCondSet() (e.g. REINDEX EVAL) are used
+ * only by this operation and are always cleared like in CA-Cl*pper,
+ * also when there are no indexes or REINDEX fails, otherwise they would
+ * be used by the next created order
+ */
+static HB_ERRCODE hb_ntxOrderListRebuild( NTXAREAP pArea )
+{
+   HB_ERRCODE errCode = hb_ntxOrderListRebuildDo( pArea );
+
+   SELF_ORDSETCOND( &pArea->dbfarea.area, NULL );
+
    return errCode;
 }
 

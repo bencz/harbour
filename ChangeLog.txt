@@ -7,6 +7,19 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 11:52 UTC-0300 Alexandre Bencz
+  * src/rdd/dbfcdx/dbfcdx1.c
+  * src/rdd/dbfntx/dbfntx1.c
+  * src/rdd/dbfnsx/dbfnsx1.c
+    ! clear conditions set by ordCondSet() after REINDEX, also when there
+      are no indexes or REINDEX fails. They were left for the next order
+      created by ordCreate(), e.g. REINDEX EVAL block was evaluated when
+      next index was created. DBFNTX and DBFNSX never cleared them and
+      DBFCDX only after successful REINDEX. CA-Cl*pper 5.3 clears them.
+
+  * utils/hbtest/rt_misc.prg
+    + added tests for conditions after REINDEX EVAL
+
 2026-11-26 11:49 UTC-0300 Alexandre Bencz
   * src/rdd/dbfcdx/dbfcdx1.c
   * src/rdd/dbfntx/dbfntx1.c
