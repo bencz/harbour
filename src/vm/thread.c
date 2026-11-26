@@ -106,6 +106,14 @@
 #  include <dos.h>
 #endif
 
+/* convert timeout in milliseconds to HB_ULONG, too big values are
+   saturated to ULONG_MAX (infinite wait) because their conversion
+   would be undefined behavior */
+static HB_ULONG hb_threadTimeOut( double dMilliSec )
+{
+   return dMilliSec < ( double ) ULONG_MAX ? ( HB_ULONG ) dMilliSec : ULONG_MAX;
+}
+
 #if defined( HB_PTHREAD_API )
 #  include <time.h>
 #  include <sys/time.h>
@@ -1598,7 +1606,7 @@ HB_FUNC( HB_THREADWAIT )
       if( HB_ISNUM( 2 ) )
       {
          double dTimeOut = hb_parnd( 2 );
-         ulMilliSec = dTimeOut > 0 ? ( HB_ULONG ) ( dTimeOut * 1000 ) : 0;
+         ulMilliSec = dTimeOut > 0 ? hb_threadTimeOut( dTimeOut * 1000 ) : 0;
       }
 
       fAll = hb_parl( 3 );
@@ -2724,7 +2732,7 @@ HB_FUNC( HB_MUTEXLOCK )
          HB_ULONG ulMilliSec = 0;
          double dTimeOut = hb_parnd( 2 );
          if( dTimeOut > 0 )
-            ulMilliSec = ( HB_ULONG ) ( dTimeOut * 1000 );
+            ulMilliSec = hb_threadTimeOut( dTimeOut * 1000 );
          hb_retl( hb_threadMutexTimedLock( pItem, ulMilliSec ) );
       }
       else
@@ -2773,7 +2781,7 @@ HB_FUNC( HB_MUTEXSUBSCRIBE )
          HB_ULONG ulMilliSec = 0;
          double dTimeOut = hb_parnd( 2 );
          if( dTimeOut > 0 )
-            ulMilliSec = ( HB_ULONG ) ( dTimeOut * 1000 );
+            ulMilliSec = hb_threadTimeOut( dTimeOut * 1000 );
          pResult = hb_threadMutexTimedSubscribe( pItem, ulMilliSec, HB_FALSE );
       }
       else
@@ -2804,7 +2812,7 @@ HB_FUNC( HB_MUTEXSUBSCRIBENOW )
          HB_ULONG ulMilliSec = 0;
          double dTimeOut = hb_parnd( 2 );
          if( dTimeOut > 0 )
-            ulMilliSec = ( HB_ULONG ) ( dTimeOut * 1000 );
+            ulMilliSec = hb_threadTimeOut( dTimeOut * 1000 );
          pResult = hb_threadMutexTimedSubscribe( pItem, ulMilliSec, HB_TRUE );
       }
       else

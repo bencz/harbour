@@ -7,6 +7,18 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 10:54 UTC-0300 Alexandre Bencz
+  * src/vm/hvm.c
+    ! fixed conversion of double array indexes, Array() dimensions and
+      numeric aliases out of integer range, e.g. a[ -1.5 ] or a[ 10^30 ],
+      it was undefined behavior, now they are converted like integer
+      values and generate the same errors
+  * src/vm/thread.c
+  * src/vm/classes.c
+    ! too big timeouts of hb_threadWait(), hb_mutexLock(),
+      hb_mutexSubscribe(), hb_mutexSubscribeNow() and SYNC methods are
+      saturated to infinite wait, their conversion was undefined behavior
+
 2026-11-26 10:51 UTC-0300 Alexandre Bencz
   * src/vm/itemapi.c
     ! hb_itemPutNLen() converts double values to integer only when they

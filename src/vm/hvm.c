@@ -5362,7 +5362,7 @@ static void hb_vmArrayPush( void )
    else if( HB_IS_LONG( pIndex ) )
       nIndex = ( HB_SIZE ) pIndex->item.asLong.value;
    else if( HB_IS_DOUBLE( pIndex ) )
-      nIndex = ( HB_SIZE ) pIndex->item.asDouble.value;
+      nIndex = ( HB_SIZE ) HB_CAST_ISIZ( pIndex->item.asDouble.value );
    else
    {
       if( hb_objOperatorCall( HB_OO_OP_ARRAYINDEX, pArray, pArray, pIndex, NULL ) )
@@ -5451,7 +5451,7 @@ static void hb_vmArrayPushRef( void )
    else if( HB_IS_LONG( pIndex ) )
       nIndex = ( HB_SIZE ) pIndex->item.asLong.value;
    else if( HB_IS_DOUBLE( pIndex ) )
-      nIndex = ( HB_SIZE ) pIndex->item.asDouble.value;
+      nIndex = ( HB_SIZE ) HB_CAST_ISIZ( pIndex->item.asDouble.value );
    else if( hb_objHasOperator( pArray, HB_OO_OP_ARRAYINDEX ) )
    {
       /* create extended object index reference */
@@ -5555,7 +5555,7 @@ static void hb_vmArrayPop( void )
    else if( HB_IS_LONG( pIndex ) )
       nIndex = ( HB_SIZE ) pIndex->item.asLong.value;
    else if( HB_IS_DOUBLE( pIndex ) )
-      nIndex = ( HB_SIZE ) pIndex->item.asDouble.value;
+      nIndex = ( HB_SIZE ) HB_CAST_ISIZ( pIndex->item.asDouble.value );
    else
    {
       if( hb_objOperatorCall( HB_OO_OP_ARRAYINDEX, pArray, pArray, pIndex, pValue ) )
@@ -5661,7 +5661,7 @@ static HB_BOOL hb_vmArrayNew( PHB_ITEM pArray, HB_USHORT uiDimension )
    else if( HB_IS_LONG( pDim ) )
       nElements = ( HB_ISIZ ) pDim->item.asLong.value;
    else if( HB_IS_DOUBLE( pDim ) )
-      nElements = ( HB_ISIZ ) pDim->item.asDouble.value;
+      nElements = HB_CAST_ISIZ( pDim->item.asDouble.value );
    else
       /* NOTE: Clipper creates empty array if non-numeric value is
        * specified as dimension and stops further processing.
@@ -5971,7 +5971,7 @@ static HB_ERRCODE hb_vmSelectWorkarea( PHB_ITEM pAlias, PHB_SYMB pField )
          case HB_IT_DOUBLE:
             /* Alias was evaluated from an expression, (nWorkArea)->field
              */
-            hb_rddSelectWorkAreaNumber( ( int ) pAlias->item.asDouble.value );
+            hb_rddSelectWorkAreaNumber( HB_CAST_INT( pAlias->item.asDouble.value ) );
             pAlias->type = HB_IT_NIL;
             break;
 

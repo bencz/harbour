@@ -4333,7 +4333,12 @@ HB_FUNC( __CLSSYNCWAIT )
    {
       double dTimeOut = hb_parnd( 2 );
       if( dTimeOut > 0 )
-         ulMilliSec = ( HB_ULONG ) ( dTimeOut * 10 );
+      {
+         /* too big values are saturated, conversion would be undefined
+            behavior, ULONG_MAX is infinite wait */
+         dTimeOut *= 10;
+         ulMilliSec = dTimeOut < ( double ) ULONG_MAX ? ( HB_ULONG ) dTimeOut : ULONG_MAX;
+      }
    }
 
    hb_retl( hb_threadMutexSyncWait( hb_param( 1, HB_IT_ANY ), ulMilliSec, pMutex ) );
