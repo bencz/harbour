@@ -1223,6 +1223,20 @@ PHB_EXPR hb_compExprReduceNE( PHB_EXPR pSelf, HB_COMP_DECL )
       HB_COMP_EXPR_FREE( pLeft );
       HB_COMP_EXPR_FREE( pRight );
    }
+   /* comparison with NIL is checked before HB_SUPPORT_EXTOPT optimization
+    * of comparison with logical value, NIL == .T. is .F., not NIL
+    */
+   else if( ( pLeft->ExprType == HB_ET_NIL &&
+              hb_compExprIsNotNilConst( pRight ) ) ||
+            ( pRight->ExprType == HB_ET_NIL &&
+              hb_compExprIsNotNilConst( pLeft ) ) )
+   {
+      HB_COMP_EXPR_FREE( pLeft );
+      HB_COMP_EXPR_FREE( pRight );
+      pSelf->ExprType        = HB_ET_LOGICAL;
+      pSelf->ValType         = HB_EV_LOGICAL;
+      pSelf->value.asLogical = HB_TRUE;
+   }
    else if( HB_SUPPORT_EXTOPT &&
             ( pLeft->ExprType == HB_ET_LOGICAL ||
               pRight->ExprType == HB_ET_LOGICAL ) )
@@ -1258,17 +1272,6 @@ PHB_EXPR hb_compExprReduceNE( PHB_EXPR pSelf, HB_COMP_DECL )
          pSelf->value.asOperator.pRight = NULL;
       }
       HB_COMP_EXPR_FREE( pRight );
-   }
-   else if( ( pLeft->ExprType == HB_ET_NIL &&
-              hb_compExprIsNotNilConst( pRight ) ) ||
-            ( pRight->ExprType == HB_ET_NIL &&
-              hb_compExprIsNotNilConst( pLeft ) ) )
-   {
-      HB_COMP_EXPR_FREE( pLeft );
-      HB_COMP_EXPR_FREE( pRight );
-      pSelf->ExprType        = HB_ET_LOGICAL;
-      pSelf->ValType         = HB_EV_LOGICAL;
-      pSelf->value.asLogical = HB_TRUE;
    }
    /* TODO: add checking of incompatible types
       else
@@ -1740,6 +1743,20 @@ PHB_EXPR hb_compExprReduceEQ( PHB_EXPR pSelf, HB_COMP_DECL )
       HB_COMP_EXPR_FREE( pLeft );
       HB_COMP_EXPR_FREE( pRight );
    }
+   /* comparison with NIL is checked before HB_SUPPORT_EXTOPT optimization
+    * of comparison with logical value, NIL == .T. is .F., not NIL
+    */
+   else if( ( pLeft->ExprType == HB_ET_NIL &&
+              hb_compExprIsNotNilConst( pRight ) ) ||
+            ( pRight->ExprType == HB_ET_NIL &&
+              hb_compExprIsNotNilConst( pLeft ) ) )
+   {
+      HB_COMP_EXPR_FREE( pLeft );
+      HB_COMP_EXPR_FREE( pRight );
+      pSelf->ExprType        = HB_ET_LOGICAL;
+      pSelf->ValType         = HB_EV_LOGICAL;
+      pSelf->value.asLogical = HB_FALSE;
+   }
    else if( HB_SUPPORT_EXTOPT &&
             ( pLeft->ExprType == HB_ET_LOGICAL ||
               pRight->ExprType == HB_ET_LOGICAL ) )
@@ -1775,17 +1792,6 @@ PHB_EXPR hb_compExprReduceEQ( PHB_EXPR pSelf, HB_COMP_DECL )
          pSelf->value.asOperator.pRight = NULL;
       }
       HB_COMP_EXPR_FREE( pRight );
-   }
-   else if( ( pLeft->ExprType == HB_ET_NIL &&
-              hb_compExprIsNotNilConst( pRight ) ) ||
-            ( pRight->ExprType == HB_ET_NIL &&
-              hb_compExprIsNotNilConst( pLeft ) ) )
-   {
-      HB_COMP_EXPR_FREE( pLeft );
-      HB_COMP_EXPR_FREE( pRight );
-      pSelf->ExprType        = HB_ET_LOGICAL;
-      pSelf->ValType         = HB_EV_LOGICAL;
-      pSelf->value.asLogical = HB_FALSE;
    }
    /* TODO: add checking of incompatible types
       else

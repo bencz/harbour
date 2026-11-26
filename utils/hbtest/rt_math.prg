@@ -700,6 +700,13 @@ PROCEDURE Main_MATH()
    /* comparison with NIL evaluates array and hash literals with side effects */
    HBTEST TNilCmp()                       IS ".F./1/.T./2/.F./3/.T./3/.F./3"
    HBTEST NIL == { .T. => 1 }             IS "E 2 BASE 1133 Bound error (array assign) OS:0 #:0 A:3:H:;L:.T.;N:1 "
+   /* comparison of NIL with logical values in -ko mode */
+   HBTEST NIL == .T.                      IS .F.
+   HBTEST NIL == .F.                      IS .F.
+   HBTEST .T. == NIL                      IS .F.
+   HBTEST NIL != .T.                      IS .T.
+   HBTEST NIL != .F.                      IS .T.
+   HBTEST .F. != NIL                      IS .T.
 
    /* count parameter of hb_i18n_ngettext_noop() is evaluated */
    HBTEST TI18nNoop()                     IS "x/1/y/2/b/3/a/3"

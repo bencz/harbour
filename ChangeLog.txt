@@ -7,6 +7,17 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 10:48 UTC-0300 Alexandre Bencz
+  * src/common/expropt2.c
+    ! fixed compile time optimization of comparison of NIL with logical
+      values in -ko mode. Extended optimization of comparison with
+      logical value was used before comparison with NIL so NIL == .T.
+      was compiled as NIL and NIL != .T. as .NOT. NIL which generated
+      runtime error. Now they are .F. and .T. like without -ko.
+
+  * utils/hbtest/rt_math.prg
+    + added tests for comparison of NIL with logical values
+
 2026-11-25 11:32 UTC-0300 Alexandre Bencz
   * src/rtl/strtran.c
   * src/rtl/trim.c
