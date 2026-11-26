@@ -1076,6 +1076,17 @@ PROCEDURE Main_MISC()
    /* relations which would create cycle are not allowed */
    HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
 
+#ifndef HB_CLP_STRICT
+   /* TOTAL with NEXT and RECORD scopes */
+   HBTEST TTotal( 0, 0 )                     IS "A3 B12 C6"
+   HBTEST TTotal( 1, 3 )                     IS "A3 B3"
+   HBTEST TTotal( 1, 1 )                     IS "A1"
+   HBTEST TTotal( 2, 4 )                     IS "A2 B12"
+   HBTEST TTotal( 0, -3 )                    IS "B3"
+   HBTEST TTotal( 1, 1.5 )                   IS "A1"
+   HBTEST TTotal( 2, 0 )                     IS ""
+#endif
+
    /* APPEND FROM the same table opened in shared mode */
    HBTEST TAppSelf()                         IS "6/1/2/3/1/2/3"
 
@@ -1102,6 +1113,43 @@ PROCEDURE Main_MISC()
    RETURN
 
 #ifdef __HARBOUR__
+
+#ifndef HB_CLP_STRICT
+/* TOTAL of 6 records with keys A A B B B C, nRec > 0 is starting record
+   for NEXT nNext, nNext < 0 is RECORD -nNext */
+STATIC FUNCTION TTotal( nRec, nNext )
+
+   LOCAL nArea := Select(), cResult := "", i, aKeys := { "A", "A", "B", "B", "B", "C" }
+
+   dbCreate( "_hbtots", { { "K", "C", 1, 0 }, { "N", "N", 5, 0 } } )
+   USE _hbtots NEW EXCLUSIVE
+   FOR i := 1 TO Len( aKeys )
+      dbAppend()
+      FIELD->K := aKeys[ i ]
+      FIELD->N := i
+   NEXT
+   DO CASE
+   CASE nNext < 0
+      __dbTotal( "_hbtotd", {|| FIELD->K }, { "N" },,,, -nNext )
+   CASE nRec > 0
+      dbGoto( nRec )
+      __dbTotal( "_hbtotd", {|| FIELD->K }, { "N" },,, nNext )
+   OTHERWISE
+      __dbTotal( "_hbtotd", {|| FIELD->K }, { "N" } )
+   ENDCASE
+   dbCloseArea()
+   USE _hbtotd NEW
+   DO WHILE ! Eof()
+      cResult += iif( Empty( cResult ), "", " " ) + FIELD->K + hb_ntos( FIELD->N )
+      dbSkip()
+   ENDDO
+   dbCloseArea()
+   FErase( "_hbtots.dbf" )
+   FErase( "_hbtotd.dbf" )
+   dbSelectArea( nArea )
+
+   RETURN cResult
+#endif
 
 STATIC FUNCTION TAppSelf()
 

@@ -105,6 +105,11 @@ FUNCTION __dbTotal( cFile, xKey, aFields, ;
          dbGoTop()
       ENDIF
    ELSE
+#ifndef HB_CLP_STRICT
+      /* NEXT is integer number of records like in COPY TO, negative
+         or fractional values cannot be used, -1 means no limit */
+      nNext := Max( Int( nNext ), 0 )
+#endif
       lRest := .T.
    ENDIF
 
@@ -148,8 +153,16 @@ FUNCTION __dbTotal( cFile, xKey, aFields, ;
 
          xCurKey := Eval( bKeyBlock )
 
+#ifdef HB_CLP_STRICT
+         /* CA-Cl*pper decrements nNext also for the record which starts
+            next group so this record is lost and NEXT 1 or RECORD scope
+            is processed to the end of file */
          DO WHILE ! Eof() .AND. nNext-- != 0 .AND. Eval( bWhileBlock ) .AND. ;
                xCurKey == Eval( bKeyBlock )
+#else
+         DO WHILE ! Eof() .AND. nNext != 0 .AND. Eval( bWhileBlock ) .AND. ;
+               xCurKey == Eval( bKeyBlock )
+#endif
 
             IF Eval( bForBlock )
                IF ! lDbTransRecord
@@ -161,6 +174,13 @@ FUNCTION __dbTotal( cFile, xKey, aFields, ;
             ENDIF
 
             dbSkip()
+#ifndef HB_CLP_STRICT
+            /* only processed records are counted, nNext is -1 when
+               scope is not limited */
+            IF nNext > 0
+               nNext--
+            ENDIF
+#endif
          ENDDO
 
          IF lDbTransRecord

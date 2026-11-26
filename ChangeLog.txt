@@ -7,6 +7,19 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 10:59 UTC-0300 Alexandre Bencz
+  * src/rdd/dbtotal.prg
+    ! fixed TOTAL with NEXT and RECORD scopes. The record which starts
+      next group was counted but not processed so it was lost, e.g.
+      TOTAL ... NEXT 3 on keys A A B did not total B, and NEXT 1 and
+      RECORD scopes were processed to the end of file. Negative and
+      fractional NEXT values are used like in COPY TO.
+      CA-Cl*pper 5.3 has the same bug and this behavior is kept in
+      builds with HB_CLP_STRICT.
+
+  * utils/hbtest/rt_misc.prg
+    + added tests for TOTAL with NEXT and RECORD scopes
+
 2026-11-26 10:54 UTC-0300 Alexandre Bencz
   * src/vm/hvm.c
     ! fixed conversion of double array indexes, Array() dimensions and
