@@ -66,6 +66,9 @@ HB_EXTERN_BEGIN
 #define CDX_EXT_HEADSIZE                             24
 
 #define CDX_HARBOUR_SIGNATURE               0x52434842L /* Harbour index signature: RCHB */
+#define CDX_HARBOUR_INVALID                 0x56494248L /* Harbour mark of tag which was not created
+                                                           correctly and needs reindexing: HBIV,
+                                                           stored in tag header reserved2 field */
 
 #define CDX_STACKSIZE                                64
 #define CDX_PAGECACHESIZE                             8
@@ -365,6 +368,7 @@ typedef struct _CDXTAG
    LPCDXKEY   bottomScopeKey; /* Bottom index key */
 
    LPCDXPAGE  pagePool;       /* page buffer in memory */
+   HB_BOOL    fInvalid;       /* tag was not created correctly, it cannot be used until reindexing */
 } CDXTAG, * LPCDXTAG;
 
 typedef struct _CDXINDEX

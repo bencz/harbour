@@ -1077,6 +1077,10 @@ PROCEDURE Main_MISC()
    HBTEST TRelCycle()                        IS "OK/1013/1013/1013/2/2/OK"
 
 #ifndef HB_CLP_STRICT
+   /* orders which were not rebuilt by interrupted REINDEX cannot be used */
+   HBTEST TReindexFail( "DBFCDX" )           IS "1340/1012/1012/1012/OK/5"
+   HBTEST TReindexFail( "DBFNTX" )           IS "1340/1012/1012/1012/OK/5"
+
    /* TOTAL with NEXT and RECORD scopes */
    HBTEST TTotal( 0, 0 )                     IS "A3 B12 C6"
    HBTEST TTotal( 1, 3 )                     IS "A3 B3"
@@ -1115,6 +1119,83 @@ PROCEDURE Main_MISC()
 #ifdef __HARBOUR__
 
 #ifndef HB_CLP_STRICT
+REQUEST DBFCDX
+
+/* REINDEX interrupted by error in key expression of the second order,
+   result: error of REINDEX/error of order use/the same after reopening/
+   ordKeyCount()/successful REINDEX/ordKeyCount() of rebuilt order */
+STATIC FUNCTION TReindexFail( cRDD )
+
+   LOCAL nArea := Select(), cResult := "", i
+   LOCAL lNtx := cRDD == "DBFNTX"
+
+   FErase( "_hbrifl.cdx" )
+   FErase( "_hbrif1.ntx" )
+   FErase( "_hbrif2.ntx" )
+   dbCreate( "_hbrifl", { { "N", "N", 5, 0 } }, cRDD )
+   USE _hbrifl VIA ( cRDD ) NEW EXCLUSIVE
+   FOR i := 1 TO 5
+      dbAppend()
+      FIELD->N := i
+   NEXT
+   hbtest_IdxFail( .F. )
+   IF lNtx
+      INDEX ON FIELD->N TO _hbrif1
+      INDEX ON hbtest_IdxKey() TO _hbrif2 ADDITIVE
+   ELSE
+      INDEX ON FIELD->N TAG T1
+      INDEX ON hbtest_IdxKey() TAG T2
+   ENDIF
+   hbtest_IdxFail( .T. )
+   cResult += TIdxErr( {|| dbReindex(), NIL } )
+   hbtest_IdxFail( .F. )
+   ordSetFocus( 2 )
+   cResult += "/" + TIdxErr( {|| dbGoTop() } )
+   dbCloseArea()
+   IF lNtx
+      USE _hbrifl VIA ( cRDD ) NEW EXCLUSIVE INDEX _hbrif1, _hbrif2
+   ELSE
+      USE _hbrifl VIA ( cRDD ) NEW EXCLUSIVE
+   ENDIF
+   ordSetFocus( 2 )
+   cResult += "/" + TIdxErr( {|| dbGoTop() } )
+   cResult += "/" + TIdxErr( {|| ordKeyCount() } )
+   cResult += "/" + TIdxErr( {|| dbReindex(), NIL } )
+   cResult += "/" + TIdxErr( {|| ordKeyCount() } )
+   dbCloseArea()
+   FErase( "_hbrifl.dbf" )
+   FErase( "_hbrifl.cdx" )
+   FErase( "_hbrif1.ntx" )
+   FErase( "_hbrif2.ntx" )
+   dbSelectArea( nArea )
+
+   RETURN cResult
+
+STATIC FUNCTION TIdxErr( bCode )
+
+   LOCAL oError, xResult
+
+   BEGIN SEQUENCE WITH {| e | Break( e ) }
+      xResult := Eval( bCode )
+   RECOVER USING oError
+      RETURN hb_ntos( oError:subCode )
+   END SEQUENCE
+
+   RETURN iif( HB_ISNUMERIC( xResult ), hb_ntos( xResult ), "OK" )
+
+FUNCTION hbtest_IdxFail( lFail )
+
+   STATIC s_lFail := .F.
+
+   IF HB_ISLOGICAL( lFail )
+      s_lFail := lFail
+   ENDIF
+
+   RETURN s_lFail
+
+FUNCTION hbtest_IdxKey()
+   RETURN iif( hbtest_IdxFail(), 1 / Val( "" ), FIELD->N * 2 )
+
 /* TOTAL of 6 records with keys A A B B B C, nRec > 0 is starting record
    for NEXT nNext, nNext < 0 is RECORD -nNext */
 STATIC FUNCTION TTotal( nRec, nNext )

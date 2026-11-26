@@ -7,6 +7,30 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 11:25 UTC-0300 Alexandre Bencz
+  * include/hbrddcdx.h
+  * src/rdd/dbfcdx/dbfcdx1.c
+    ! tags which were not created correctly because INDEX or REINDEX
+      was interrupted, i.e. by error in key expression, cannot be used
+      until they are created again. Such tags contained only some keys
+      (usually none) and they were silently used as valid ones, so
+      searching and counting gave wrong results. Now they are marked
+      in tag header (Harbour extension in reserved bytes, ignored by
+      other tools) and all operations on their keys generate
+      DBFCDX/1012 Corruption detected error until successful REINDEX.
+      Tags created from fields without conditions are still valid when
+      REINDEX is interrupted by previous tag. Opening such index does
+      not generate error.
+      INCOMPATIBLE: programs which ignore errors of INDEX/REINDEX and
+      use such orders get runtime error instead of wrong results.
+      Tested with CA-Cl*pper 5.3: its DBFNTX aborts with internal error
+      1240 and DBFCDX ignores error and indexes all records with empty
+      key in such case.
+      DBFNTX already generates DBFNTX/1012 error for such indexes.
+
+  * utils/hbtest/rt_misc.prg
+    + added tests for interrupted REINDEX in DBFCDX and DBFNTX
+
 2026-11-26 10:59 UTC-0300 Alexandre Bencz
   * src/rdd/dbtotal.prg
     ! fixed TOTAL with NEXT and RECORD scopes. The record which starts

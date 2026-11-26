@@ -3463,6 +3463,8 @@ static void hb_cdxTagHeaderStore( LPCDXTAG pTag )
       HB_PUT_LE_UINT16( tagHeader.ascendFlg, 1 );
    if( pTag->IgnoreCase )
       tagHeader.ignoreCase = 1;
+   if( pTag->fInvalid )
+      HB_PUT_BE_UINT32( tagHeader.reserved2, CDX_HARBOUR_INVALID );
 
    uiKeyLen = pTag->KeyExpr == NULL ? 0 : ( HB_USHORT ) strlen( pTag->KeyExpr );
    uiForLen = pTag->ForExpr == NULL ? 0 : ( HB_USHORT ) strlen( pTag->ForExpr );
@@ -3541,6 +3543,7 @@ static void hb_cdxTagLoad( LPCDXTAG pTag )
    uiKeyLen = HB_GET_LE_UINT16( tagHeader.keyExpLen );
 
    pTag->RootBlock = HB_GET_LE_UINT32( tagHeader.rootPtr );
+   pTag->fInvalid = HB_GET_BE_UINT32( tagHeader.reserved2 ) == CDX_HARBOUR_INVALID;
 
    if( pTag->TagBlock == 0 )
    {
@@ -5250,6 +5253,46 @@ static LPCDXTAG hb_cdxGetActiveTag( CDXAREAP pArea )
 }
 
 /*
+ * check if tag can be used, tags which were not created correctly, i.e.
+ * INDEX or REINDEX was interrupted by error in key expression, contain
+ * only some keys so they generate RT error until they are reindexed
+ */
+static HB_BOOL hb_cdxTagIsInvalid( CDXAREAP pArea, LPCDXTAG pTag )
+{
+   if( pTag && pTag->fInvalid )
+   {
+      hb_cdxErrorRT( pArea, EG_CORRUPTION, EDBF_CORRUPT,
+                     pTag->pIndex->szFileName, 0, 0, NULL );
+      return HB_TRUE;
+   }
+   return HB_FALSE;
+}
+
+/*
+ * go to the first record after opening indexes, it does not generate
+ * RT error when active tag is not valid, so the table can be opened and
+ * reindexed, the error is generated when such tag is used
+ */
+static HB_ERRCODE hb_cdxGoTopOpen( CDXAREAP pArea )
+{
+   LPCDXTAG pTag = hb_cdxGetActiveTag( pArea );
+
+   if( pTag && pTag->fInvalid )
+   {
+      /* SUPER_GOTOP() may call SKIPRAW() method when SET DELETED or
+         filter is active so the tag is disabled temporary */
+      HB_USHORT uiTag = pArea->uiTag;
+      HB_ERRCODE errCode;
+
+      pArea->uiTag = 0;
+      errCode = SUPER_GOTOP( &pArea->dbfarea.area );
+      pArea->uiTag = uiTag;
+      return errCode;
+   }
+   return SELF_GOTOP( &pArea->dbfarea.area );
+}
+
+/*
  * refresh CurKey value and set proper path from RootPage to LeafPage
  */
 static HB_BOOL hb_cdxCurKeyRefresh( CDXAREAP pArea, LPCDXTAG pTag )
@@ -6560,6 +6603,8 @@ static HB_ERRCODE hb_cdxGoBottom( CDXAREAP pArea )
    pTag = hb_cdxGetActiveTag( pArea );
    if( ! pTag )
       return SUPER_GOBOTTOM( &pArea->dbfarea.area );
+   if( hb_cdxTagIsInvalid( pArea, pTag ) )
+      return HB_FAILURE;
 
    if( pArea->dbfarea.lpdbPendingRel && pArea->dbfarea.lpdbPendingRel->isScoped )
       SELF_FORCEREL( &pArea->dbfarea.area );
@@ -6606,6 +6651,8 @@ static HB_ERRCODE hb_cdxGoTop( CDXAREAP pArea )
    pTag = hb_cdxGetActiveTag( pArea );
    if( ! pTag )
       return SUPER_GOTOP( &pArea->dbfarea.area );
+   if( hb_cdxTagIsInvalid( pArea, pTag ) )
+      return HB_FAILURE;
 
    if( pArea->dbfarea.lpdbPendingRel && pArea->dbfarea.lpdbPendingRel->isScoped )
       SELF_FORCEREL( &pArea->dbfarea.area );
@@ -6650,6 +6697,8 @@ static HB_ERRCODE hb_cdxSeek( CDXAREAP pArea, HB_BOOL fSoftSeek, PHB_ITEM pKeyIt
       hb_cdxErrorRT( pArea, EG_NOORDER, EDBF_NOTINDEXED, NULL, 0, EF_CANDEFAULT, NULL );
       return HB_FAILURE;
    }
+   else if( hb_cdxTagIsInvalid( pArea, pTag ) )
+      return HB_FAILURE;
    else
    {
       LPCDXKEY pKey;
@@ -6731,6 +6780,8 @@ static HB_ERRCODE hb_cdxSkip( CDXAREAP pArea, HB_LONG lToSkip )
       SELF_FORCEREL( &pArea->dbfarea.area );
 
    pTag = lToSkip == 0 ? NULL : hb_cdxGetActiveTag( pArea );
+   if( hb_cdxTagIsInvalid( pArea, pTag ) )
+      return HB_FAILURE;
    if( pTag && pArea->dbfarea.fPositioned && CURKEY_LOGPOS( pTag ) )
    {
       ulPos = pTag->logKeyPos;
@@ -6803,6 +6854,9 @@ static HB_ERRCODE hb_cdxSkipRaw( CDXAREAP pArea, HB_LONG lToSkip )
 
    if( ! pTag || lToSkip == 0 )
       return SUPER_SKIPRAW( &pArea->dbfarea.area, lToSkip );
+
+   if( hb_cdxTagIsInvalid( pArea, pTag ) )
+      return HB_FAILURE;
 
    if( pArea->dbfarea.lpdbPendingRel )
       SELF_FORCEREL( &pArea->dbfarea.area );
@@ -7214,7 +7268,7 @@ static HB_ERRCODE hb_cdxOpen( CDXAREAP pArea, LPDBOPENINFO pOpenInfo )
             errCode = SELF_ORDLSTFOCUS( &pArea->dbfarea.area, &pOrderInfo );
             hb_itemRelease( pOrderInfo.itmOrder );
             if( errCode == HB_SUCCESS )
-               errCode = SELF_GOTOP( &pArea->dbfarea.area );
+               errCode = hb_cdxGoTopOpen( pArea );
          }
          hb_itemRelease( pOrderInfo.atomBagName );
          hb_itemRelease( pOrderInfo.itmResult );
@@ -7329,7 +7383,7 @@ static HB_ERRCODE hb_cdxOrderListAdd( CDXAREAP pArea, LPDBORDERINFO pOrderInfo )
       if( ! pArea->uiTag )
       {
          pArea->uiTag = hb_cdxGetTagNumber( pArea, pIndex->TagList );
-         SELF_GOTOP( &pArea->dbfarea.area );
+         hb_cdxGoTopOpen( pArea );
       }
       return HB_SUCCESS;
    }
@@ -7398,7 +7452,7 @@ static HB_ERRCODE hb_cdxOrderListAdd( CDXAREAP pArea, LPDBORDERINFO pOrderInfo )
    if( ! pArea->uiTag )
    {
       pArea->uiTag = hb_cdxGetTagNumber( pArea, pIndex->TagList );
-      SELF_GOTOP( &pArea->dbfarea.area );
+      hb_cdxGoTopOpen( pArea );
    }
    return HB_SUCCESS;
 }
@@ -8171,6 +8225,34 @@ static HB_ERRCODE hb_cdxOrderInfo( CDXAREAP pArea, HB_USHORT uiIndex, LPDBORDERI
    {
       uiTag = pArea->uiTag;
       pTag = hb_cdxGetTagByNumber( pArea, uiTag );
+   }
+
+   /* operations on keys of tag which was not created correctly */
+   if( pTag && pTag->fInvalid )
+   {
+      switch( uiIndex )
+      {
+         case DBOI_POSITION:
+         case DBOI_KEYNORAW:
+         case DBOI_KEYCOUNT:
+         case DBOI_KEYCOUNTRAW:
+         case DBOI_RELKEYPOS:
+         case DBOI_FINDREC:
+         case DBOI_FINDRECCONT:
+         case DBOI_SKIPUNIQUE:
+         case DBOI_SKIPEVAL:
+         case DBOI_SKIPEVALBACK:
+         case DBOI_SKIPWILD:
+         case DBOI_SKIPWILDBACK:
+         case DBOI_SKIPREGEX:
+         case DBOI_SKIPREGEXBACK:
+         case DBOI_SCOPEEVAL:
+         case DBOI_KEYVAL:
+         case DBOI_KEYADD:
+         case DBOI_KEYDELETE:
+            hb_cdxTagIsInvalid( pArea, pTag );
+            return HB_FAILURE;
+      }
    }
 
    switch( uiIndex )
@@ -9542,6 +9624,7 @@ static void hb_cdxTagDoIndex( LPCDXTAG pTag, HB_BOOL fReindex )
    PHB_ITEM pWhileItem = NULL, pEvalItem = NULL;
    HB_ULONG ulRecCount, ulRecNo = pArea->dbfarea.ulRecNo;
    HB_LONG lStep = 0;
+   HB_BOOL fFail = HB_FALSE, fRequest = hb_vmRequestQuery() != 0;
    PHB_CODEPAGE cdpTmp = hb_cdpSelect( pArea->dbfarea.area.cdPage );
 
    if( pArea->dbfarea.area.lpdbOrdCondInfo )
@@ -9674,6 +9757,7 @@ static void hb_cdxTagDoIndex( LPCDXTAG pTag, HB_BOOL fReindex )
                {
                   hb_cdxErrorRT( pTag->pIndex->pArea, EG_READ, EDBF_READ,
                                  pTag->pIndex->szFileName, hb_fsError(), 0, NULL );
+                  fFail = HB_TRUE;
                   break;
                }
                iRecBuff = 0;
@@ -9681,7 +9765,10 @@ static void hb_cdxTagDoIndex( LPCDXTAG pTag, HB_BOOL fReindex )
             pArea->dbfarea.pRecord = pSort->pRecBuff + iRecBuff * pArea->dbfarea.uiRecordLen;
             pArea->dbfarea.ulRecNo = ulRecNo;
             if( SELF_GETREC( &pArea->dbfarea.area, NULL ) == HB_FAILURE )
+            {
+               fFail = HB_TRUE;
                break;
+            }
             pArea->dbfarea.fValidBuffer = pArea->dbfarea.fPositioned = HB_TRUE;
             pArea->dbfarea.fDeleted = pArea->dbfarea.pRecord[ 0 ] == '*';
             /* Force relational movement in child WorkAreas */
@@ -9764,6 +9851,7 @@ static void hb_cdxTagDoIndex( LPCDXTAG pTag, HB_BOOL fReindex )
                   hb_cdxErrorRT( pArea, EG_DATATYPE, EDBF_INVALIDKEY, NULL, 0, 0, NULL );
                   pEvalItem = NULL;
                   ulNextCount = 1;
+                  fFail = HB_TRUE;
                   break;
             }
          }
@@ -9802,6 +9890,20 @@ static void hb_cdxTagDoIndex( LPCDXTAG pTag, HB_BOOL fReindex )
       hb_cdxSortOut( pSort );
       if( pTag->nField )
          hb_itemRelease( pItem );
+
+      /* index creation was interrupted, i.e. by error in key expression,
+       * so the tag contains only some keys, it is marked in tag header
+       * and cannot be used until it is created again, request (i.e. BREAK)
+       * pending before creation interrupts evaluation of all expressions
+       * so only tags created from fields without conditions are valid
+       */
+      if( fFail || ( hb_vmRequestQuery() != 0 &&
+                     ( ! fRequest || ! pTag->nField || pForItem ||
+                       pWhileItem || pEvalItem ) ) )
+      {
+         pTag->fInvalid = HB_TRUE;
+         pTag->TagChanged = HB_TRUE;
+      }
 
       if( fDirectRead )
       {
