@@ -1273,6 +1273,7 @@ static void hb_nsxTagUpdateFlags( LPTAGINFO pTag )
    pTag->Partial   = ( pTag->TagFlags & NSX_TAG_PARTIAL  ) != 0;
    pTag->Template  = ( pTag->TagFlags & NSX_TAG_TEMPLATE ) != 0;
    pTag->MultiKey  = ( pTag->TagFlags & NSX_TAG_MULTIKEY ) != 0;
+   pTag->fInvalid  = ( pTag->TagFlags & NSX_TAG_INVALID  ) != 0;
 }
 
 /*
@@ -1925,7 +1926,8 @@ static HB_ERRCODE hb_nsxTagHeaderSave( LPTAGINFO pTag )
                            ( pTag->Template ? NSX_TAG_TEMPLATE : 0 ) |
                            ( pTag->ChgOnly  ? NSX_TAG_CHGONLY  : 0 ) |
                            ( pTag->Custom   ? NSX_TAG_NOUPDATE : 0 ) |
-                           ( pTag->MultiKey ? NSX_TAG_MULTIKEY : 0 );
+                           ( pTag->MultiKey ? NSX_TAG_MULTIKEY : 0 ) |
+                           ( pTag->fInvalid ? NSX_TAG_INVALID  : 0 );
    HB_PUT_LE_UINT32( Header.RootPage, pTag->RootBlock );
 
    if( pIndex->Update )
@@ -5792,6 +5794,25 @@ static void hb_nsxSortOut( LPNSXSORTINFO pSort )
 }
 
 /*
+ * create empty root page of tag
+ */
+static HB_BOOL hb_nsxTagEmptyRoot( LPTAGINFO pTag )
+{
+   LPPAGEINFO pPage = hb_nsxPageNew( pTag, HB_FALSE );
+
+   if( pPage )
+   {
+      pTag->RootBlock = pPage->Page;
+      hb_nsxSetPageType( pPage, NSX_ROOTPAGE | NSX_LEAFPAGE );
+      hb_nsxSetKeyRecSize( pPage, hb_nsxGetRecSize( 0 ) );
+      pPage->uiOffset = NSX_LEAFKEYOFFSET;
+      hb_nsxPageRelease( pTag, pPage );
+      return HB_TRUE;
+   }
+   return HB_FALSE;
+}
+
+/*
  * create tag in index file
  */
 static HB_ERRCODE hb_nsxTagCreate( LPTAGINFO pTag, HB_BOOL fReindex )
@@ -5822,11 +5843,10 @@ static HB_ERRCODE hb_nsxTagCreate( LPTAGINFO pTag, HB_BOOL fReindex )
    }
    pArea->pSort = pSort = hb_nsxSortNew( pTag, ulRecCount );
    pSort->fReindex = fReindex;
+   pTag->fInvalid = HB_FALSE;
 
    if( ulRecCount == 0 )
    {
-      LPPAGEINFO pPage;
-
 #if defined( HB_NSX_SIX_STRICT )
       if( ! pTag->HeadBlock )
       {
@@ -5835,16 +5855,7 @@ static HB_ERRCODE hb_nsxTagCreate( LPTAGINFO pTag, HB_BOOL fReindex )
       }
 #endif
 
-      pPage = hb_nsxPageNew( pTag, HB_FALSE );
-      if( pPage )
-      {
-         pTag->RootBlock = pPage->Page;
-         hb_nsxSetPageType( pPage, NSX_ROOTPAGE | NSX_LEAFPAGE );
-         hb_nsxSetKeyRecSize( pPage, hb_nsxGetRecSize( 0 ) );
-         pPage->uiOffset = NSX_LEAFKEYOFFSET;
-         hb_nsxPageRelease( pTag, pPage );
-      }
-      else
+      if( ! hb_nsxTagEmptyRoot( pTag ) )
       {
          errCode = HB_FAILURE;
       }
@@ -5961,6 +5972,7 @@ static HB_ERRCODE hb_nsxTagCreate( LPTAGINFO pTag, HB_BOOL fReindex )
                {
                   hb_nsxErrorRT( pTag->pIndex->pArea, EG_READ, EDBF_READ,
                                  pTag->pIndex->IndexName, hb_fsError(), 0, NULL );
+                  errCode = HB_FAILURE;
                   break;
                }
                iRecBuff = 0;
@@ -5968,7 +5980,10 @@ static HB_ERRCODE hb_nsxTagCreate( LPTAGINFO pTag, HB_BOOL fReindex )
             pArea->dbfarea.pRecord = pSort->pBuffIO + iRecBuff * pArea->dbfarea.uiRecordLen;
             pArea->dbfarea.ulRecNo = ulRecNo;
             if( SELF_GETREC( &pArea->dbfarea.area, NULL ) == HB_FAILURE )
+            {
+               errCode = HB_FAILURE;
                break;
+            }
             pArea->dbfarea.fValidBuffer = pArea->dbfarea.fPositioned = HB_TRUE;
             pArea->dbfarea.fDeleted = pArea->dbfarea.pRecord[ 0 ] == '*';
             /* Force relational movement in child WorkAreas */
@@ -6074,8 +6089,20 @@ static HB_ERRCODE hb_nsxTagCreate( LPTAGINFO pTag, HB_BOOL fReindex )
             errCode = SELF_GOTO( &pArea->dbfarea.area, ulRecNo );
       }
 
-      if( errCode == HB_SUCCESS )
-         hb_nsxSortOut( pSort );
+      /* the tag is always written to keep the index file valid, but when
+       * its creation was interrupted, i.e. by error in key expression, it
+       * contains only some keys, so it is marked in tag header and cannot
+       * be used until it is created again
+       */
+      hb_nsxSortOut( pSort );
+      /* hb_nsxSortOut() does not write anything when RT error is pending */
+      if( ! pTag->RootBlock )
+         hb_nsxTagEmptyRoot( pTag );
+      if( errCode != HB_SUCCESS )
+      {
+         pTag->fInvalid = HB_TRUE;
+         pTag->HdrChanged = HB_TRUE;
+      }
 
       if( pTag->nField )
          hb_itemRelease( pItem );
@@ -6109,9 +6136,10 @@ static HB_ERRCODE hb_nsxReIndex( LPNSXINDEX pIndex )
          LPTAGINFO pTag = pIndex->lpTags[ i ];
          pTag->HeadBlock = pTag->RootBlock = pTag->keyCount = 0;
          pTag->HdrChanged = HB_TRUE;
-         errCode = hb_nsxTagCreate( pTag, HB_TRUE );
-         if( errCode != HB_SUCCESS )
-            break;
+         /* all tags are created to keep the index file valid,
+            tags which were not created correctly are marked */
+         if( hb_nsxTagCreate( pTag, HB_TRUE ) != HB_SUCCESS )
+            errCode = HB_FAILURE;
       }
       hb_nsxIndexUnLockWrite( pIndex );
    }
@@ -6122,6 +6150,44 @@ static HB_ERRCODE hb_nsxReIndex( LPNSXINDEX pIndex )
 /* ************************************************************************* */
 
 /* Implementation of RDD methods */
+
+/*
+ * check if tag can be used, tags which were not created correctly, i.e.
+ * INDEX or REINDEX was interrupted by error in key expression, contain
+ * only some keys so they generate RT error until they are reindexed
+ */
+static HB_BOOL hb_nsxTagIsInvalid( NSXAREAP pArea, LPTAGINFO pTag )
+{
+   if( pTag && pTag->fInvalid )
+   {
+      hb_nsxErrorRT( pArea, EG_CORRUPTION, EDBF_CORRUPT,
+                     pTag->pIndex->IndexName, 0, 0, NULL );
+      return HB_TRUE;
+   }
+   return HB_FALSE;
+}
+
+/*
+ * go to the first record after opening indexes, it does not generate
+ * RT error when active tag is not valid, so the table can be opened and
+ * reindexed, the error is generated when such tag is used
+ */
+static HB_ERRCODE hb_nsxGoTopOpen( NSXAREAP pArea )
+{
+   if( pArea->lpCurTag && pArea->lpCurTag->fInvalid )
+   {
+      /* SUPER_GOTOP() may call SKIPRAW() method when SET DELETED or
+         filter is active so the tag is disabled temporary */
+      LPTAGINFO pTag = pArea->lpCurTag;
+      HB_ERRCODE errCode;
+
+      pArea->lpCurTag = NULL;
+      errCode = SUPER_GOTOP( &pArea->dbfarea.area );
+      pArea->lpCurTag = pTag;
+      return errCode;
+   }
+   return SELF_GOTOP( &pArea->dbfarea.area );
+}
 
 static HB_ERRCODE hb_nsxGoBottom( NSXAREAP pArea )
 {
@@ -6134,6 +6200,9 @@ static HB_ERRCODE hb_nsxGoBottom( NSXAREAP pArea )
 
    if( ! pArea->lpCurTag )
       return SUPER_GOBOTTOM( &pArea->dbfarea.area );
+
+   if( hb_nsxTagIsInvalid( pArea, pArea->lpCurTag ) )
+      return HB_FAILURE;
 
    if( pArea->dbfarea.lpdbPendingRel && pArea->dbfarea.lpdbPendingRel->isScoped )
       SELF_FORCEREL( &pArea->dbfarea.area );
@@ -6172,6 +6241,9 @@ static HB_ERRCODE hb_nsxTop( NSXAREAP pArea )
    if( ! pArea->lpCurTag )
       return SUPER_GOTOP( &pArea->dbfarea.area );
 
+   if( hb_nsxTagIsInvalid( pArea, pArea->lpCurTag ) )
+      return HB_FAILURE;
+
    if( pArea->dbfarea.lpdbPendingRel && pArea->dbfarea.lpdbPendingRel->isScoped )
       SELF_FORCEREL( &pArea->dbfarea.area );
 
@@ -6209,6 +6281,8 @@ static HB_ERRCODE hb_nsxSeek( NSXAREAP pArea, HB_BOOL fSoftSeek, PHB_ITEM pItem,
       hb_nsxErrorRT( pArea, EG_NOORDER, EDBF_NOTINDEXED, NULL, 0, EF_CANDEFAULT, NULL );
       return HB_FAILURE;
    }
+   else if( hb_nsxTagIsInvalid( pArea, pArea->lpCurTag ) )
+      return HB_FAILURE;
    else
    {
       LPKEYINFO pKey;
@@ -6298,6 +6372,9 @@ static HB_ERRCODE hb_nsxSkipRaw( NSXAREAP pArea, HB_LONG lToSkip )
 
    if( ! pArea->lpCurTag || lToSkip == 0 )
       return SUPER_SKIPRAW( &pArea->dbfarea.area, lToSkip );
+
+   if( hb_nsxTagIsInvalid( pArea, pArea->lpCurTag ) )
+      return HB_FAILURE;
 
    if( ! hb_nsxTagLockRead( pArea->lpCurTag ) )
       return HB_FAILURE;
@@ -6659,7 +6736,7 @@ static HB_ERRCODE hb_nsxOpen( NSXAREAP pArea, LPDBOPENINFO pOpenInfo )
             errCode = SELF_ORDLSTFOCUS( &pArea->dbfarea.area, &pOrderInfo );
             hb_itemRelease( pOrderInfo.itmOrder );
             if( errCode == HB_SUCCESS )
-               errCode = SELF_GOTOP( &pArea->dbfarea.area );
+               errCode = hb_nsxGoTopOpen( pArea );
          }
          hb_itemRelease( pOrderInfo.atomBagName );
          hb_itemRelease( pOrderInfo.itmResult );
@@ -7285,6 +7362,34 @@ static HB_ERRCODE hb_nsxOrderInfo( NSXAREAP pArea, HB_USHORT uiIndex, LPDBORDERI
 
    pTag = hb_nsxFindTag( pArea, pInfo->itmOrder, pInfo->atomBagName );
 
+   /* operations on keys of tag which was not created correctly */
+   if( pTag && pTag->fInvalid )
+   {
+      switch( uiIndex )
+      {
+         case DBOI_POSITION:
+         case DBOI_KEYNORAW:
+         case DBOI_KEYCOUNT:
+         case DBOI_KEYCOUNTRAW:
+         case DBOI_RELKEYPOS:
+         case DBOI_FINDREC:
+         case DBOI_FINDRECCONT:
+         case DBOI_SKIPUNIQUE:
+         case DBOI_SKIPEVAL:
+         case DBOI_SKIPEVALBACK:
+         case DBOI_SKIPWILD:
+         case DBOI_SKIPWILDBACK:
+         case DBOI_SKIPREGEX:
+         case DBOI_SKIPREGEXBACK:
+         case DBOI_SCOPEEVAL:
+         case DBOI_KEYVAL:
+         case DBOI_KEYADD:
+         case DBOI_KEYDELETE:
+            hb_nsxTagIsInvalid( pArea, pTag );
+            return HB_FAILURE;
+      }
+   }
+
    if( pTag )
    {
       switch( uiIndex )
@@ -7903,7 +8008,7 @@ static HB_ERRCODE hb_nsxOrderListAdd( NSXAREAP pArea, LPDBORDERINFO pOrderInfo )
    if( ! pArea->lpCurTag && pIndex->iTags )
    {
       pArea->lpCurTag = pIndex->lpTags[ 0 ];
-      errCode = SELF_GOTOP( &pArea->dbfarea.area );
+      errCode = hb_nsxGoTopOpen( pArea );
    }
    return errCode;
 }
@@ -8034,16 +8139,17 @@ static HB_ERRCODE hb_nsxOrderListRebuild( NSXAREAP pArea )
    pCurrTag = pArea->lpCurTag;
    pArea->lpCurTag = NULL;
    pIndex = pArea->lpIndexes;
-   while( pIndex && errCode == HB_SUCCESS )
+   while( pIndex )
    {
-      errCode = hb_nsxReIndex( pIndex );
+      if( hb_nsxReIndex( pIndex ) != HB_SUCCESS )
+         errCode = HB_FAILURE;
       pIndex = pIndex->pNext;
    }
+   pArea->lpCurTag = pCurrTag;
    if( errCode == HB_SUCCESS )
-   {
-      pArea->lpCurTag = pCurrTag;
       errCode = SELF_GOTOP( &pArea->dbfarea.area );
-   }
+   else
+      hb_nsxGoTopOpen( pArea );
    return errCode;
 }
 

@@ -1080,6 +1080,7 @@ PROCEDURE Main_MISC()
    /* orders which were not rebuilt by interrupted REINDEX cannot be used */
    HBTEST TReindexFail( "DBFCDX" )           IS "1340/1012/1012/1012/OK/5"
    HBTEST TReindexFail( "DBFNTX" )           IS "1340/1012/1012/1012/OK/5"
+   HBTEST TReindexFail( "DBFNSX" )           IS "1340/1012/1012/1012/OK/5"
 
    /* TOTAL with NEXT and RECORD scopes */
    HBTEST TTotal( 0, 0 )                     IS "A3 B12 C6"
@@ -1120,6 +1121,7 @@ PROCEDURE Main_MISC()
 
 #ifndef HB_CLP_STRICT
 REQUEST DBFCDX
+REQUEST DBFNSX
 
 /* REINDEX interrupted by error in key expression of the second order,
    result: error of REINDEX/error of order use/the same after reopening/
@@ -1130,6 +1132,7 @@ STATIC FUNCTION TReindexFail( cRDD )
    LOCAL lNtx := cRDD == "DBFNTX"
 
    FErase( "_hbrifl.cdx" )
+   FErase( "_hbrifl.nsx" )
    FErase( "_hbrif1.ntx" )
    FErase( "_hbrif2.ntx" )
    dbCreate( "_hbrifl", { { "N", "N", 5, 0 } }, cRDD )
@@ -1165,6 +1168,7 @@ STATIC FUNCTION TReindexFail( cRDD )
    dbCloseArea()
    FErase( "_hbrifl.dbf" )
    FErase( "_hbrifl.cdx" )
+   FErase( "_hbrifl.nsx" )
    FErase( "_hbrif1.ntx" )
    FErase( "_hbrif2.ntx" )
    dbSelectArea( nArea )

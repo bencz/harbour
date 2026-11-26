@@ -231,6 +231,8 @@ HB_EXTERN_BEGIN
 #define NSX_TAG_NOUPDATE   0x08
 #define NSX_TAG_SHADOW     0x10
 #define NSX_TAG_MULTIKEY   0x20
+#define NSX_TAG_INVALID    0x80  /* Harbour extension: tag was not created
+                                    correctly and needs reindexing */
 
 /*
 sx_Chill()  => if ( indexFlag & ( NSX_TAG_NOUPDATE | NSX_TAG_TEMPLATE ) == 0 )
@@ -435,6 +437,7 @@ typedef struct _TAGINFO
    HB_BOOL     Partial;
    HB_BOOL     Template;
    HB_BOOL     MultiKey;
+   HB_BOOL     fInvalid;      /* tag was not created correctly, it cannot be used until reindexing */
 
    HB_BOOL     HdrChanged;
    HB_BOOL     TagBOF;

@@ -7,6 +7,29 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2026-11-26 11:31 UTC-0300 Alexandre Bencz
+  * include/hbrddnsx.h
+  * src/rdd/dbfnsx/dbfnsx1.c
+    ! fixed REINDEX interrupted by error, i.e. in key expression. It was
+      stopped after truncating the index file so the failing tag had no
+      root page and other tags were not created and the index file could
+      not be opened again (DBFNSX/1010 Read error). Now all tags are
+      created and tags which were not created correctly are marked with
+      new NSX_TAG_INVALID flag (Harbour extension) in tag header. All
+      operations on their keys generate DBFNSX/1012 Corruption detected
+      error until successful REINDEX. Tags created after the failing one
+      in the same REINDEX are marked too. Opening such index does not
+      generate error.
+      INCOMPATIBLE: programs which ignore errors of INDEX/REINDEX and
+      use such orders get runtime error instead of wrong results.
+    ! restore active order after REINDEX failure
+    ! mark tags when index creation is interrupted by read error
+    ! create empty root page for tags which creation was interrupted, so
+      they can be destroyed
+
+  * utils/hbtest/rt_misc.prg
+    + added test for interrupted REINDEX in DBFNSX
+
 2026-11-26 11:25 UTC-0300 Alexandre Bencz
   * include/hbrddcdx.h
   * src/rdd/dbfcdx/dbfcdx1.c
